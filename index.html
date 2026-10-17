@@ -344,8 +344,28 @@ async function saveReading(){
   if(raw===''||!Number.isFinite(rh)||rh<0||rh>100)return message('ความชื้นต้องอยู่ระหว่าง 0–100%','err');
   if(!loc)return message('กรุณาระบุตำแหน่งวัด','err');
   if(entries.some(e=>e.date===date&&e.time===time&&e.loc.toLowerCase()===loc.toLowerCase()))return message('มีข้อมูลตำแหน่งนี้ในวันและเวลานี้แล้ว กรุณาตรวจสอบก่อนบันทึกซ้ำ','err');
-  const outdoorKey=`${date}T${time}:00`,outdoorRh=outdoor.hourly[outdoorKey]??null;
-  const data={date,time,rh,loc,note,outdoorRh,outdoorSource:outdoor.source[date]||'Open-Meteo',outdoorTime:outdoorKey};
+//  const outdoorKey=`${date}T${time}:00`,outdoorRh=outdoor.hourly[outdoorKey]??null;
+//  const data={date,time,rh,loc,note,outdoorRh,outdoorSource:outdoor.source[date]||'Open-Meteo',outdoorTime:outdoorKey};
+  // โหลดข้อมูลความชื้นภายนอกของวันที่เลือกก่อนบันทึก
+await loadOutdoor(date, date);
+
+// Open-Meteo ใช้รูปแบบเวลา YYYY-MM-DDTHH:MM
+const outdoorKey = `${date}T${time}`;
+const outdoorRh =
+  outdoor.hourly[outdoorKey] ??
+  outdoor.hourly[`${outdoorKey}:00`] ??
+  null;
+
+const data = {
+  date,
+  time,
+  rh,
+  loc,
+  note,
+  outdoorRh,
+  outdoorSource: outdoor.source[date] || 'Open-Meteo',
+  outdoorTime: outdoorKey
+};
   $('#add').disabled=true;
   try{
     if(!API_CONFIGURED){
