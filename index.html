@@ -1,1 +1,505 @@
-hello world
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#eef1ee">
+<title>บันทึกความชื้นในอาคาร</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef1ee;--card:#fbfcfb;--tx:#1b2a28;--mu:#586866;--bd:#d3dbd8;--out:#5f8794;--in:#c2410c;--ac:#14655c;--grid:#e1e7e4;--warn:#8a4b08;--warnbg:#fff1d6;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.55 'Sarabun',system-ui,sans-serif}
+main{max-width:1000px;margin:0 auto;padding:22px 16px 48px}
+h1{font-size:1.55rem;line-height:1.3;margin:0 0 6px}
+h2{font-size:1.05rem;margin:0 0 12px}
+p{margin:0 0 12px}
+.sub,.muted{color:var(--mu)}
+.sub{margin-bottom:18px}
+section{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:16px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+.row.spread{justify-content:space-between}
+label{display:flex;flex-direction:column;font-size:.88rem;color:var(--mu);gap:4px}
+input,select,button{font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:7px;padding:8px 10px;max-width:100%}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+button{cursor:pointer}
+button:disabled{opacity:.6;cursor:wait}
+button.primary{background:var(--ac);border-color:var(--ac);color:#fff}
+button.small{padding:3px 8px;font-size:.82rem}
+.tabs{display:flex;gap:6px;margin-bottom:10px}
+.tabs button[aria-pressed=true]{background:var(--ac);color:#fff;border-color:var(--ac)}
+svg{width:100%;height:auto;display:block;min-width:520px}
+.chart-wrap{overflow-x:auto}
+svg .grid{stroke:var(--grid);stroke-width:1}
+svg .tick{fill:var(--mu);font-size:11px}
+svg .threshold{stroke:var(--in);stroke-dasharray:5 4;stroke-width:1.4;opacity:.8}
+.key{display:flex;gap:16px;flex-wrap:wrap;font-size:.85rem;margin:8px 0}
+.key i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.src{font-size:.82rem;color:var(--mu);border-top:1px solid var(--bd);padding-top:9px;margin-top:10px;overflow-wrap:anywhere}
+.stats{display:flex;gap:18px;flex-wrap:wrap;margin:12px 0}
+.stats div{font-size:.85rem;color:var(--mu);min-width:120px}
+.stats b{display:block;font-size:1.3rem;color:var(--tx)}
+#msg{font-size:.9rem;color:var(--mu);margin-top:10px;min-height:1.4em}
+#msg.err{color:#b42318}
+.notice{border:1px solid #e9c98b;background:var(--warnbg);color:var(--warn);border-radius:8px;padding:10px 12px;margin:12px 0 16px;font-size:.88rem}
+.table-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.86rem}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--bd);white-space:nowrap}
+th{color:var(--mu);font-weight:600}
+footer{font-size:.8rem;color:var(--mu);padding:4px 2px}
+@media(max-width:600px){main{padding:16px 10px 32px}section{padding:13px}h1{font-size:1.35rem}.stats div{min-width:calc(50% - 18px)}}
+</style>
+</head>
+<body>
+<main>
+  <h1>บันทึกความชื้นในอาคาร</h1>
+  <p class="sub">ต้นแบบสำหรับเปรียบเทียบค่าความชื้นสัมพัทธ์ภายในอาคารกับข้อมูลสภาพอากาศภายนอกจาก Open-Meteo</p>
+
+  <div class="notice">
+    <strong>ข้อจำกัดของรุ่นนี้:</strong> ข้อมูลที่กรอกเก็บในเบราว์เซอร์ของเครื่องนี้เท่านั้น (localStorage)
+    ยังไม่ได้เชื่อม Google Sheets หรือ Google Drive และจะไม่ซิงก์ระหว่างผู้ใช้หรืออุปกรณ์
+  </div>
+
+  <section>
+    <h2>บันทึกค่าความชื้นภายใน</h2>
+    <div class="row">
+      <label>วันที่วัด
+        <input type="date" id="f-date" required>
+      </label>
+      <label>เวลาที่วัด
+        <select id="f-time">
+          <option value="07:00">07:00 น.</option>
+          <option value="16:00">16:00 น.</option>
+        </select>
+      </label>
+      <label>ความชื้นสัมพัทธ์ (% RH)
+        <input type="number" id="f-rh" min="0" max="100" step="0.1" inputmode="decimal" placeholder="เช่น 72.5" style="width:145px" required>
+      </label>
+      <label>ตำแหน่ง (ชั้น/ห้อง)
+        <input type="text" id="f-loc" value="ชั้น 14 ท.102" style="width:190px" required>
+      </label>
+      <label>หมายเหตุ
+        <input type="text" id="f-note" placeholder="เช่น เปิดเครื่องปรับอากาศ" style="width:210px">
+      </label>
+      <button class="primary" id="add">บันทึก</button>
+    </div>
+    <div id="msg" role="status" aria-live="polite"></div>
+  </section>
+
+  <section>
+    <div class="row spread">
+      <div class="tabs" role="group" aria-label="มุมมองกราฟ">
+        <button id="tab-d" aria-pressed="true">รายวัน</button>
+        <button id="tab-w" aria-pressed="false">7 วัน</button>
+      </div>
+      <label>วันที่อ้างอิงกราฟ
+        <input type="date" id="f-chart-date">
+      </label>
+    </div>
+    <div class="key">
+      <span><i style="background:var(--out)"></i>ภายนอก (Open-Meteo)</span>
+      <span><i style="background:var(--in)"></i>ภายใน (วัดจริง/กรอกเอง)</span>
+      <span><i style="background:none;border-top:2px dashed var(--in);height:0;border-radius:0"></i>เกณฑ์อ้างอิง <span id="thr-label">60</span>%</span>
+    </div>
+    <div class="chart-wrap" id="chart"></div>
+    <div class="stats" id="stats"></div>
+    <div class="src" id="source-info"></div>
+  </section>
+
+  <section>
+    <h2>ตั้งค่าอาคารและเกณฑ์อ้างอิง</h2>
+    <div class="row">
+      <label>ชื่ออาคาร/ตำแหน่ง
+        <input type="text" id="c-place" style="width:200px">
+      </label>
+      <label>Latitude
+        <input type="number" id="c-lat" step="0.0000001" style="width:160px">
+      </label>
+      <label>Longitude
+        <input type="number" id="c-lon" step="0.0000001" style="width:160px">
+      </label>
+      <label>เกณฑ์อ้างอิง (% RH)
+        <input type="number" id="c-thr" min="0" max="100" step="1" style="width:130px">
+      </label>
+      <button id="c-save">บันทึกตั้งค่าและดึงข้อมูลใหม่</button>
+      <button id="c-reset">คืนค่าเริ่มต้น</button>
+    </div>
+    <p class="src">ค่าตั้งต้น: Latitude 13.8117793, Longitude 100.4876223, ตำแหน่งวัด ชั้น 14 ท.102 และเกณฑ์อ้างอิง 60% ค่าเกณฑ์นี้เป็นเพียงค่าอ้างอิงที่ปรับได้ ไม่ใช่การวินิจฉัยความเสี่ยงต่อสุขภาพ</p>
+  </section>
+
+  <section>
+    <div class="row spread" style="margin-bottom:8px">
+      <h2 style="margin:0">รายการที่บันทึก (<span id="count">0</span>)</h2>
+      <div class="row">
+        <button id="csv">ดาวน์โหลด CSV</button>
+        <button id="clear">ล้างข้อมูลในเบราว์เซอร์นี้</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>วันที่วัด</th><th>เวลา</th><th>RH %</th><th>ตำแหน่ง</th><th>หมายเหตุ</th><th>เวลาที่บันทึก</th><th>จัดการ</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <p class="src">แสดงรายการล่าสุดไม่เกิน 100 รายการในตาราง แต่ข้อมูลที่บันทึกไว้ในเบราว์เซอร์ยังคงอยู่จนกว่าจะล้างข้อมูลหรือข้อมูลของเว็บไซต์ถูกลบ</p>
+  </section>
+  <footer>
+    ข้อมูลภายนอกมาจาก Open-Meteo และเป็นค่าความชื้นสัมพัทธ์ที่ระดับ 2 เมตรจากชุดข้อมูลสภาพอากาศ ไม่ใช่การวัดบนผิวอาคารหรือภายในห้องโดยตรง
+  </footer>
+</main>
+
+<script>
+'use strict';
+
+const TZ = 'Asia/Bangkok';
+const $ = s => document.querySelector(s);
+const DEFAULT_CFG = {
+  lat: 13.8117793,
+  lon: 100.4876223,
+  place: 'ชั้น 14 ท.102',
+  thr: 60
+};
+const SLOT_TIMES = ['07:00', '16:00'];
+
+function readStore(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw === null ? fallback : JSON.parse(raw);
+  } catch (e) {
+    return fallback;
+  }
+}
+function writeStore(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch (e) {
+    showMessage('บันทึกในเบราว์เซอร์ไม่สำเร็จ พื้นที่จัดเก็บอาจเต็มหรือถูกปิดใช้งาน', true);
+    return false;
+  }
+}
+
+let entries = readStore('rh_entries_v2', []);
+let cfg = Object.assign({}, DEFAULT_CFG, readStore('rh_cfg_v2', {}));
+let outdoor = readStore('rh_out_v2', { hourly: {}, source: {}, fetchedAt: null });
+let view = 'd';
+let isLoadingOutdoor = false;
+
+function nowLocalParts() {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+  }).formatToParts(new Date());
+  const p = Object.fromEntries(parts.map(x => [x.type, x.value]));
+  return { date: `${p.year}-${p.month}-${p.day}`, time: `${p.hour}:${p.minute}` };
+}
+function today() { return nowLocalParts().date; }
+function nowStamp() {
+  const p = nowLocalParts();
+  return `${p.date}T${p.time}`;
+}
+function addDays(date, n) {
+  const d = new Date(date + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+function dateDiff(a, b) {
+  return Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 86400000);
+}
+function avg(a) { return a.length ? a.reduce((x, y) => x + y, 0) / a.length : null; }
+function fmt(v, digits = 1) { return v == null || !Number.isFinite(Number(v)) ? '–' : Number(v).toFixed(digits); }
+function dayMonth(d) { return d.slice(8, 10) + '/' + d.slice(5, 7); }
+function showMessage(text, error = false) {
+  const el = $('#msg');
+  el.textContent = text;
+  el.className = error ? 'err' : '';
+}
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+function selectedDate() { return $('#f-chart-date').value || today(); }
+function indoorOn(date) { return entries.filter(e => e.date === date); }
+function outdoorOn(date) {
+  return Object.keys(outdoor.hourly)
+    .filter(k => k.startsWith(date + 'T'))
+    .map(k => Number(outdoor.hourly[k]))
+    .filter(Number.isFinite);
+}
+
+async function fetchJson(url) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error('HTTP ' + response.status);
+  return response.json();
+}
+async function pullOutdoorRange(start, end) {
+  const base = `latitude=${encodeURIComponent(cfg.lat)}&longitude=${encodeURIComponent(cfg.lon)}&hourly=relative_humidity_2m&timezone=${encodeURIComponent(TZ)}`;
+  const todayDate = today();
+  const jobs = [];
+
+  // Archive API provides historical reanalysis data. Use it for dates older than the recent forecast window.
+  const archiveEnd = end < addDays(todayDate, -6) ? end : addDays(todayDate, -6);
+  if (start <= archiveEnd) {
+    const url = `https://archive-api.open-meteo.com/v1/archive?${base}&start_date=${start}&end_date=${archiveEnd}`;
+    jobs.push(fetchJson(url).then(j => ({ json: j, label: 'Historical Weather API (archive/reanalysis)' })));
+  }
+
+  // Forecast API provides recent past days and the current day.
+  const recentStart = start > addDays(todayDate, -7) ? start : addDays(todayDate, -7);
+  if (end >= recentStart) {
+    const pastDays = Math.max(0, Math.min(7, dateDiff(recentStart, todayDate)));
+    const url = `https://api.open-meteo.com/v1/forecast?${base}&past_days=${pastDays}&forecast_days=1`;
+    jobs.push(fetchJson(url).then(j => ({ json: j, label: 'Forecast API (recent observations/model data)' })));
+  }
+
+  if (!jobs.length) return;
+  isLoadingOutdoor = true;
+  render();
+  try {
+    const results = await Promise.all(jobs);
+    for (const result of results) {
+      const hourly = result.json.hourly;
+      if (!hourly || !hourly.time) continue;
+      hourly.time.forEach((t, i) => {
+        const value = hourly.relative_humidity_2m?.[i];
+        if (value !== null && value !== undefined) {
+          outdoor.hourly[t] = Number(value);
+          outdoor.source[t.slice(0, 10)] = result.label;
+        }
+      });
+    }
+    outdoor.fetchedAt = nowStamp();
+    writeStore('rh_out_v2', outdoor);
+    showMessage('อัปเดตข้อมูลภายนอกสำเร็จ เวลา ' + outdoor.fetchedAt + ' (เวลาไทย)');
+  } catch (error) {
+    showMessage('ดึงข้อมูลภายนอกไม่สำเร็จ: ' + error.message + ' — แสดงข้อมูลที่เคยโหลดไว้ถ้ามี', true);
+  } finally {
+    isLoadingOutdoor = false;
+    render();
+  }
+}
+async function loadOutdoorForChart() {
+  const d = selectedDate();
+  const start = view === 'w' ? addDays(d, -6) : d;
+  await pullOutdoorRange(start, d);
+}
+
+const W = 760, H = 310, L = 44, R = 16, T = 16, B = 34;
+const plotW = W - L - R, plotH = H - T - B;
+const Y = v => T + (100 - v) / 100 * plotH;
+function chartFrame() {
+  let s = '';
+  for (let v = 0; v <= 100; v += 20) {
+    s += `<line class="grid" x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}"/>`;
+    s += `<text class="tick" x="${L-7}" y="${Y(v)+4}" text-anchor="end">${v}</text>`;
+  }
+  return s;
+}
+function thresholdLine() {
+  return `<line class="threshold" x1="${L}" x2="${W-R}" y1="${Y(cfg.thr)}" y2="${Y(cfg.thr)}"/>`;
+}
+function dailyChart(date) {
+  const X = minutes => L + minutes / 1440 * plotW;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="กราฟความชื้นรายวัน ${date}">` + chartFrame();
+  for (let h = 0; h <= 24; h += 3) {
+    s += `<text class="tick" x="${X(h*60)}" y="${H-10}" text-anchor="middle">${String(h).padStart(2,'0')}:00</text>`;
+  }
+  s += thresholdLine();
+  const points = [];
+  for (let h = 0; h < 24; h++) {
+    const key = `${date}T${String(h).padStart(2,'0')}:00`;
+    const value = outdoor.hourly[key];
+    if (value != null && Number.isFinite(Number(value))) points.push([h*60, Number(value)]);
+  }
+  if (points.length) {
+    s += `<path d="${points.map((p,i) => (i ? 'L' : 'M') + X(p[0]).toFixed(1) + ' ' + Y(p[1]).toFixed(1)).join(' ')}" fill="none" stroke="var(--out)" stroke-width="2.5"/>`;
+    points.forEach(p => s += `<circle cx="${X(p[0])}" cy="${Y(p[1])}" r="2.5" fill="var(--out)"/>`);
+  }
+  indoorOn(date).forEach(e => {
+    const mins = Number(e.time.slice(0,2))*60 + Number(e.time.slice(3,5));
+    s += `<circle cx="${X(mins)}" cy="${Y(e.rh)}" r="5.5" fill="var(--in)"><title>${escapeHtml(e.time)} น. ${e.rh}% ${escapeHtml(e.loc)}</title></circle>`;
+  });
+  return s + '</svg>';
+}
+function weeklyChart(endDate) {
+  const days = [];
+  for (let i = 6; i >= 0; i--) days.push(addDays(endDate, -i));
+  const slot = plotW / 7, bw = slot * .29;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="กราฟความชื้นย้อนหลัง 7 วันถึง ${endDate}">` + chartFrame() + thresholdLine();
+  days.forEach((date, i) => {
+    const cx = L + slot * (i + .5);
+    const outdoorAvg = avg(outdoorOn(date));
+    const readings = indoorOn(date).map(e => Number(e.rh)).filter(Number.isFinite);
+    const indoorAvg = avg(readings);
+    s += `<text class="tick" x="${cx}" y="${H-10}" text-anchor="middle">${dayMonth(date)}</text>`;
+    if (outdoorAvg != null) {
+      s += `<rect x="${cx-bw-2}" y="${Y(outdoorAvg)}" width="${bw}" height="${Y(0)-Y(outdoorAvg)}" fill="var(--out)"><title>${date} ภายนอกเฉลี่ย ${outdoorAvg.toFixed(1)}%</title></rect>`;
+    }
+    if (indoorAvg != null) {
+      s += `<rect x="${cx+2}" y="${Y(indoorAvg)}" width="${bw}" height="${Y(0)-Y(indoorAvg)}" fill="var(--in)"><title>${date} ภายในเฉลี่ย ${indoorAvg.toFixed(1)}% (${readings.length} ค่า)</title></rect>`;
+      s += `<line x1="${cx+2}" x2="${cx+2+bw}" y1="${Y(Math.max(...readings))}" y2="${Y(Math.max(...readings))}" stroke="var(--tx)" stroke-width="2"/>`;
+    }
+  });
+  return s + '</svg>';
+}
+function render() {
+  const date = selectedDate();
+  const days = view === 'd' ? [date] : Array.from({length: 7}, (_, i) => addDays(date, i - 6));
+  $('#chart').innerHTML = view === 'd' ? dailyChart(date) : weeklyChart(date);
+  $('#thr-label').textContent = cfg.thr;
+
+  const indoor = days.flatMap(d => indoorOn(d).map(e => Number(e.rh)).filter(Number.isFinite));
+  const outside = days.flatMap(d => outdoorOn(d));
+  const over = indoor.length ? indoor.filter(v => v >= cfg.thr).length : null;
+  $('#stats').innerHTML =
+    `<div><b>${fmt(avg(outside))}%</b>ภายนอกเฉลี่ย</div>` +
+    `<div><b>${fmt(avg(indoor))}%</b>ภายในเฉลี่ย (${indoor.length} ค่า)</div>` +
+    `<div><b>${indoor.length ? fmt(Math.max(...indoor)) : '–'}%</b>ภายในสูงสุด</div>` +
+    `<div><b>${over == null ? '–' : over + '/' + indoor.length}</b>ค่าภายในที่ ≥ ${cfg.thr}%</div>`;
+
+  const sources = [...new Set(days.map(d => outdoor.source[d]).filter(Boolean))];
+  $('#source-info').innerHTML =
+    `<strong>ภายนอก:</strong> Open-Meteo · พิกัด ${cfg.lat}, ${cfg.lon} (${escapeHtml(cfg.place)}) · ` +
+    `แหล่งข้อมูลในช่วงที่แสดง: ${sources.length ? sources.map(escapeHtml).join(', ') : 'ยังไม่มีข้อมูล'} · ` +
+    `ดึงข้อมูลล่าสุด ${escapeHtml(outdoor.fetchedAt || 'ยังไม่เคยดึงข้อมูล')} (เวลาไทย)<br>` +
+    `<strong>ภายใน:</strong> ผู้ใช้กรอกค่าที่วัดจริง · เขตเวลา ${TZ} · ` +
+    `${isLoadingOutdoor ? 'กำลังดึงข้อมูลภายนอก…' : 'กราฟแสดงข้อมูลที่มีอยู่ในเครื่องนี้'}`;
+
+  $('#count').textContent = entries.length;
+  const latest = [...entries].sort((a,b) => (b.date + b.time).localeCompare(a.date + a.time)).slice(0,100);
+  $('#rows').innerHTML = latest.length ? latest.map(e =>
+    `<tr><td>${escapeHtml(e.date)}</td><td>${escapeHtml(e.time)}</td><td>${escapeHtml(e.rh)}</td>` +
+    `<td>${escapeHtml(e.loc || '')}</td><td>${escapeHtml(e.note || '')}</td>` +
+    `<td>${escapeHtml(e.logged || '')}</td><td><button class="small" data-delete="${escapeHtml(e.id)}">ลบ</button></td></tr>`
+  ).join('') : '<tr><td colspan="7">ยังไม่มีข้อมูลที่บันทึก</td></tr>';
+}
+
+$('#add').addEventListener('click', () => {
+  const date = $('#f-date').value;
+  const time = $('#f-time').value;
+  const rawRh = $('#f-rh').value;
+  const rh = Number(rawRh);
+  const loc = $('#f-loc').value.trim();
+  if (!date) return showMessage('กรุณาเลือกวันที่วัด', true);
+  if (!SLOT_TIMES.includes(time)) return showMessage('เลือกเวลา 07:00 หรือ 16:00 เท่านั้น', true);
+  if (rawRh === '' || !Number.isFinite(rh) || rh < 0 || rh > 100) return showMessage('ความชื้นต้องอยู่ระหว่าง 0–100%', true);
+  if (!loc) return showMessage('กรุณาระบุตำแหน่งวัด', true);
+
+  const duplicate = entries.some(e => e.date === date && e.time === time && e.loc.toLowerCase() === loc.toLowerCase());
+  if (duplicate) return showMessage('ตำแหน่งนี้มีข้อมูลในวันและเวลานี้แล้ว หากต้องการแก้ไขให้ลบรายการเดิมก่อน', true);
+
+  const entry = {
+    id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2)),
+    date, time, rh, loc,
+    note: $('#f-note').value.trim(),
+    logged: nowStamp()
+  };
+  entries.push(entry);
+  if (!writeStore('rh_entries_v2', entries)) {
+    entries = entries.filter(e => e.id !== entry.id);
+    return;
+  }
+  $('#f-rh').value = '';
+  $('#f-note').value = '';
+  $('#f-chart-date').value = date;
+  showMessage(`บันทึกแล้ว ${rh}% วันที่ ${date} เวลา ${time} น.`);
+  render();
+  loadOutdoorForChart();
+});
+
+$('#rows').addEventListener('click', event => {
+  const id = event.target?.dataset?.delete;
+  if (!id) return;
+  if (!confirm('ต้องการลบรายการนี้จากเบราว์เซอร์เครื่องนี้หรือไม่?')) return;
+  entries = entries.filter(e => String(e.id) !== String(id));
+  writeStore('rh_entries_v2', entries);
+  render();
+});
+
+$('#clear').addEventListener('click', () => {
+  if (!confirm('ล้างข้อมูลที่บันทึกไว้ในเบราว์เซอร์เครื่องนี้ทั้งหมด? แนะนำให้ดาวน์โหลด CSV ก่อน')) return;
+  entries = [];
+  writeStore('rh_entries_v2', entries);
+  render();
+  showMessage('ล้างข้อมูลในเบราว์เซอร์เครื่องนี้แล้ว');
+});
+
+$('#csv').addEventListener('click', () => {
+  const quote = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const rows = [['measured_date','measured_time','indoor_rh_percent','location','note','logged_at','source']]
+    .concat(entries.map(e => [e.date,e.time,e.rh,e.loc,e.note,e.logged,'manual entry']));
+  const blob = new Blob(['\ufeff' + rows.map(r => r.map(quote).join(',')).join('\r\n')], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'indoor-humidity-' + today() + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
+
+$('#tab-d').addEventListener('click', () => setView('d'));
+$('#tab-w').addEventListener('click', () => setView('w'));
+function setView(next) {
+  view = next;
+  $('#tab-d').setAttribute('aria-pressed', String(view === 'd'));
+  $('#tab-w').setAttribute('aria-pressed', String(view === 'w'));
+  render();
+  loadOutdoorForChart();
+}
+$('#f-chart-date').addEventListener('change', () => {
+  render();
+  loadOutdoorForChart();
+});
+
+$('#c-save').addEventListener('click', () => {
+  const lat = Number($('#c-lat').value);
+  const lon = Number($('#c-lon').value);
+  const thr = Number($('#c-thr').value);
+  const place = $('#c-place').value.trim();
+  if (!Number.isFinite(lat) || Math.abs(lat) > 90) return showMessage('Latitude ต้องอยู่ระหว่าง -90 ถึง 90', true);
+  if (!Number.isFinite(lon) || Math.abs(lon) > 180) return showMessage('Longitude ต้องอยู่ระหว่าง -180 ถึง 180', true);
+  if (!Number.isFinite(thr) || thr < 0 || thr > 100) return showMessage('เกณฑ์อ้างอิงต้องอยู่ระหว่าง 0–100%', true);
+  cfg = {lat, lon, thr, place: place || DEFAULT_CFG.place};
+  writeStore('rh_cfg_v2', cfg);
+  outdoor = {hourly:{}, source:{}, fetchedAt:null};
+  writeStore('rh_out_v2', outdoor);
+  render();
+  showMessage('บันทึกตั้งค่าแล้ว กำลังดึงข้อมูลภายนอกใหม่');
+  loadOutdoorForChart();
+});
+
+$('#c-reset').addEventListener('click', () => {
+  cfg = {...DEFAULT_CFG};
+  writeStore('rh_cfg_v2', cfg);
+  $('#c-place').value = cfg.place;
+  $('#c-lat').value = cfg.lat;
+  $('#c-lon').value = cfg.lon;
+  $('#c-thr').value = cfg.thr;
+  outdoor = {hourly:{}, source:{}, fetchedAt:null};
+  writeStore('rh_out_v2', outdoor);
+  render();
+  showMessage('คืนค่าเริ่มต้นแล้ว กำลังดึงข้อมูลภายนอก');
+  loadOutdoorForChart();
+});
+
+function init() {
+  const now = nowLocalParts();
+  $('#f-date').value = now.date;
+  $('#f-chart-date').value = now.date;
+  $('#f-time').value = now.time < '12:00' ? '07:00' : '16:00';
+  $('#f-loc').value = DEFAULT_CFG.place;
+  $('#c-place').value = cfg.place;
+  $('#c-lat').value = cfg.lat;
+  $('#c-lon').value = cfg.lon;
+  $('#c-thr').value = cfg.thr;
+  render();
+  loadOutdoorForChart();
+}
+init();
+</script>
+</body>
+</html>
