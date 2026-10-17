@@ -43,7 +43,7 @@ footer{font-size:.8rem;color:var(--mu);padding:4px 2px}
   <p class="sub">เปรียบเทียบความชื้นและอุณหภูมิภายในอาคารกับข้อมูลสภาพอากาศภายนอกจาก Open-Meteo</p>
 
   <div class="notice">
-    <strong>ก่อนใช้งาน:</strong> ให้นำ URL ของ Google Apps Script Web App ที่ลงท้ายด้วย <code>/exec</code>
+    <strong>ก่อนใช้งาน:</strong> ให้นำ URL ของ Google Apps Script Web App ที่ Deploy ล่าสุด และ ลงท้ายด้วย <code>/exec</code>
     ไปใส่ในตัวแปร <code>API_URL</code> ใน JavaScript ด้านล่าง และติดตั้ง Code.gs ที่รองรับ API ตามสัญญาข้อมูลของไฟล์นี้
     หากยังไม่ได้ตั้งค่า API เว็บจะทำงานในโหมดทดลองภายในเบราว์เซอร์ และข้อมูลจะไม่แชร์กับผู้ใช้คนอื่น
   </div>
@@ -77,6 +77,7 @@ footer{font-size:.8rem;color:var(--mu);padding:4px 2px}
       <div class="tabs" role="group" aria-label="มุมมองกราฟ">
         <button id="tab-d" aria-pressed="true">รายวัน</button>
         <button id="tab-w" aria-pressed="false">ย้อนหลัง 7 วัน</button>
+        <button id="tab-m" aria-pressed="false">ย้อนหลัง 1 เดือน</button>
       </div>
       <label>วันที่อ้างอิงกราฟ<input type="date" id="f-chart-date"></label>
     </div>
@@ -274,7 +275,9 @@ async function loadOutdoor(start,end){
   }finally{loadingOutdoor=false;render();}
 }
 function loadChartOutdoor(){
-  const d=chartDate();return loadOutdoor(view==='w'?addDays(d,-6):d,d);
+  const d=chartDate();
+  const start=view==='w'?addDays(d,-6):view==='m'?addDays(d,-29):d;
+  return loadOutdoor(start,d);
 }
 function outdoorOn(date){
   return Object.keys(outdoor.hourly).filter(k=>k.startsWith(date+'T')).map(k=>Number(outdoor.hourly[k])).filter(Number.isFinite);
@@ -310,9 +313,36 @@ function weeklyChart(end){
   });
   return s+'</svg>';
 }
+function monthlyLineChart(end){
+  const days=Array.from({length:30},(_,i)=>addDays(end,i-29));
+  const slot=PW/(days.length-1);
+  const X=i=>L+i*slot;
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="กราฟเส้นความชื้นย้อนหลัง 1 เดือนถึง ${end}">`+frame()+threshold();
+  days.forEach((d,i)=>{
+    if(i%3===0||i===days.length-1)s+=`<text class="tick" x="${X(i)}" y="${H-10}" text-anchor="middle">${dayMonth(d)}</text>`;
+  });
+  const outside=days.map(d=>avg(outdoorOn(d)));
+  const inside=days.map(d=>avg(indoorOn(d).map(e=>e.rh)));
+  function line(values,color,label){
+    let paths=[],run=[];
+    values.forEach((v,i)=>{
+      if(v==null||!Number.isFinite(v)){if(run.length){paths.push(run);run=[];}return;}
+      run.push([X(i),Y(v),days[i],v]);
+    });
+    if(run.length)paths.push(run);
+    return paths.map(points=>{
+      let out=`<path d="${points.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ')}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+      points.forEach(p=>{out+=`<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="${color}"><title>${p[2]} ${label}: ${p[3].toFixed(1)}%</title></circle>`;});
+      return out;
+    }).join('');
+  }
+  s+=line(outside,'var(--out)','ภายนอกเฉลี่ย');
+  s+=line(inside,'var(--in)','ภายในเฉลี่ย');
+  return s+'</svg>';
+}
 function render(){
-  const d=chartDate(),days=view==='d'?[d]:Array.from({length:7},(_,i)=>addDays(d,i-6));
-  $('#chart').innerHTML=view==='d'?dailyChart(d):weeklyChart(d);
+  const d=chartDate(),days=view==='d'?[d]:Array.from({length:view==='w'?7:30},(_,i)=>addDays(d,i-(view==='w'?6:29)));
+  $('#chart').innerHTML=view==='d'?dailyChart(d):view==='w'?weeklyChart(d):monthlyLineChart(d);
   $('#thr-label').textContent=cfg.thr;
   const indoor=days.flatMap(x=>indoorOn(x).map(e=>e.rh)),outside=days.flatMap(outdoorOn);
   const over=indoor.length?indoor.filter(v=>v>=cfg.thr).length:null;
@@ -401,7 +431,8 @@ $('#add').addEventListener('click',saveReading);
 $('#refresh').addEventListener('click',()=>refreshLogs().catch(()=>{}));
 $('#tab-d').addEventListener('click',()=>setView('d'));
 $('#tab-w').addEventListener('click',()=>setView('w'));
-function setView(v){view=v;$('#tab-d').setAttribute('aria-pressed',String(v==='d'));$('#tab-w').setAttribute('aria-pressed',String(v==='w'));render();loadChartOutdoor();}
+$('#tab-m').addEventListener('click',()=>setView('m'));
+function setView(v){view=v;$('#tab-d').setAttribute('aria-pressed',String(v==='d'));$('#tab-w').setAttribute('aria-pressed',String(v==='w'));$('#tab-m').setAttribute('aria-pressed',String(v==='m'));render();loadChartOutdoor();}
 $('#f-chart-date').addEventListener('change',()=>{render();loadChartOutdoor();});
 $('#csv').addEventListener('click',()=>{
   const quote=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
@@ -436,7 +467,7 @@ async function init(){
   if(API_CONFIGURED)await refreshLogs().catch(()=>{});
   else {
     entries=storeGet('rh_local_demo_entries',[]).map(normalizeRecord);
-    render();message('API_URL — HumidC','err');
+    render();message('ยังไม่ได้ตั้งค่า API_URL — ขณะนี้ทำงานในโหมดทดลองเท่านั้น','err');
   }
   loadChartOutdoor();
 }
