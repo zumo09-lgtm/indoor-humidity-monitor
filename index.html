@@ -40,7 +40,7 @@ footer{font-size:.8rem;color:var(--mu);padding:4px 2px}
 <body>
 <main>
   <h1>บันทึกความชื้นในอาคาร</h1>
-  <p class="sub">เปรียบเทียบค่าความชื้นสัมพัทธ์ภายในอาคารกับข้อมูลสภาพอากาศภายนอกจาก Open-Meteo</p>
+  <p class="sub">เปรียบเทียบความชื้นและอุณหภูมิภายในอาคารกับข้อมูลสภาพอากาศภายนอกจาก Open-Meteo</p>
 
   <div class="notice">
     <strong>ก่อนใช้งาน:</strong> ให้นำ URL ของ Google Apps Script Web App ที่ลงท้ายด้วย <code>/exec</code>
@@ -57,6 +57,9 @@ footer{font-size:.8rem;color:var(--mu);padding:4px 2px}
       </label>
       <label>ความชื้นสัมพัทธ์ (% RH)
         <input type="number" id="f-rh" min="0" max="100" step="0.1" inputmode="decimal" placeholder="เช่น 72.5" style="width:145px" required>
+      </label>
+      <label>อุณหภูมิภายใน (°C)
+        <input type="number" id="f-temp" min="-50" max="80" step="0.1" inputmode="decimal" placeholder="เช่น 25.5" style="width:145px">
       </label>
       <label>ตำแหน่ง (ชั้น/ห้อง)
         <input type="text" id="f-loc" value="ชั้น 14 ท.102" style="width:190px" required>
@@ -107,7 +110,7 @@ footer{font-size:.8rem;color:var(--mu);padding:4px 2px}
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>วันที่วัด</th><th>เวลา</th><th>RH %</th><th>ตำแหน่ง</th><th>หมายเหตุ</th><th>เวลาที่บันทึก</th></tr></thead>
+        <thead><tr><th>วันที่วัด</th><th>เวลา</th><th>RH %</th><th>อุณหภูมิภายใน °C</th><th>อุณหภูมิภายนอก °C</th><th>ตำแหน่ง</th><th>หมายเหตุ</th><th>เวลาที่บันทึก</th></tr></thead>
         <tbody id="rows"><tr><td colspan="6">กำลังโหลดข้อมูล…</td></tr></tbody>
       </table>
     </div>
@@ -123,7 +126,7 @@ footer{font-size:.8rem;color:var(--mu);padding:4px 2px}
 <iframe name="appsScriptPostTarget" id="appsScriptPostTarget" title="API submission target" style="display:none"></iframe>
 <form id="apiPostForm" method="post" target="appsScriptPostTarget" style="display:none">
   <input name="action"><input name="date"><input name="time"><input name="rh">
-  <input name="loc"><input name="note"><input name="outdoorRh">
+  <input name="loc"><input name="note"><input name="indoorTemp"><input name="outdoorRh"><input name="outdoorTemp">
   <input name="outdoorSource"><input name="outdoorTime">
 </form>
 
@@ -135,7 +138,7 @@ footer{font-size:.8rem;color:var(--mu);padding:4px 2px}
  * Paste the deployed Google Apps Script Web App URL ending in /exec below.
  * Example shape: https://script.google.com/macros/s/DEPLOYMENT_ID/exec
  */
-const API_URL = 'https://script.google.com/macros/s/AKfycbyoBsKHYWk4qI810tUCqjN08Eb23Vwuat2wwA94-Ad18eqM0EWtpeQ-CQQtxOgrfk_rCw/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxO5FqqFqfkSHTmyw0vA_2s2MMJaJb22pfhVjD2D0G7vJqAZwrWiHyt-9osY2AuTLvA6g/exec';
 const TZ = 'Asia/Bangkok';
 const $ = selector => document.querySelector(selector);
 const DEFAULT_CFG = {lat:13.8117793, lon:100.4876223, place:'ชั้น 14 ท.102', thr:60};
@@ -152,7 +155,8 @@ function storeSet(key, value) {
 }
 let cfg = Object.assign({}, DEFAULT_CFG, storeGet('rh_cfg_v3', {}));
 let entries = [];
-let outdoor = storeGet('rh_out_v3', {hourly:{}, source:{}, fetchedAt:null});
+let outdoor = storeGet('rh_out_v3', {hourly:{}, tempHourly:{}, source:{}, fetchedAt:null});
+outdoor.tempHourly = outdoor.tempHourly || {};
 let view = 'd';
 let loadingOutdoor = false;
 let loadingLogs = false;
@@ -185,9 +189,11 @@ function normalizeRecord(r){
     loc:String(r.loc||r.location||r.Location||DEFAULT_CFG.place),
     note:String(r.note||r.Note||''),
     logged:String(r.logged||r.loggedAt||r.Timestamp||''),
+    indoorTemp:r.indoorTemp===''||r.indoorTemp==null?null:Number(r.indoorTemp),
     outdoorRh:r.outdoorRh===''||r.outdoorRh==null?null:Number(r.outdoorRh),
     outdoorSource:String(r.outdoorSource||r.Source||''),
-    outdoorTime:String(r.outdoorTime||'')
+    outdoorTime:String(r.outdoorTime||''),
+    outdoorTemp:r.outdoorTemp===''||r.outdoorTemp==null?null:Number(r.outdoorTemp)
   };
 }
 
@@ -234,7 +240,7 @@ async function refreshLogs(silent=false){
   }finally{loadingLogs=false;}
 }
 async function loadOutdoor(start,end){
-  const base=`latitude=${encodeURIComponent(cfg.lat)}&longitude=${encodeURIComponent(cfg.lon)}&hourly=relative_humidity_2m&timezone=${encodeURIComponent(TZ)}`;
+  const base=`latitude=${encodeURIComponent(cfg.lat)}&longitude=${encodeURIComponent(cfg.lon)}&hourly=relative_humidity_2m,temperature_2m&timezone=${encodeURIComponent(TZ)}`;
   const t=today(), jobs=[];
   const archiveEnd=end<addDays(t,-6)?end:addDays(t,-6);
   if(start<=archiveEnd){
@@ -255,7 +261,10 @@ async function loadOutdoor(start,end){
       const h=result.json.hourly;if(!h?.time)continue;
       h.time.forEach((time,i)=>{
         const value=h.relative_humidity_2m?.[i];
-        if(value!==null&&value!==undefined){outdoor.hourly[time]=Number(value);outdoor.source[time.slice(0,10)]=result.source;}
+        const temp=h.temperature_2m?.[i];
+        if(value!==null&&value!==undefined)outdoor.hourly[time]=Number(value);
+        if(temp!==null&&temp!==undefined)outdoor.tempHourly[time]=Number(temp);
+        outdoor.source[time.slice(0,10)]=result.source;
       });
     }
     outdoor.fetchedAt=bangkokParts().stamp;
@@ -312,7 +321,7 @@ function render(){
   $('#source-info').innerHTML=`<strong>ภายนอก:</strong> Open-Meteo · พิกัด ${cfg.lat}, ${cfg.lon} (${esc(cfg.place)}) · ${sources.length?sources.map(esc).join(', '):'ยังไม่มีข้อมูลในช่วงนี้'} · ดึงล่าสุด ${esc(outdoor.fetchedAt||'ยังไม่มีข้อมูล')} (เวลาไทย)<br><strong>ภายใน:</strong> Google Sheets ${API_CONFIGURED?'(ฐานข้อมูลกลาง)':'(โหมดทดลองในเครื่อง)'} · เขตเวลา ${TZ}${loadingOutdoor?' · กำลังดึงข้อมูลภายนอก…':''}`;
   $('#count').textContent=entries.length;
   const latest=[...entries].sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time)).slice(0,100);
-  $('#rows').innerHTML=latest.length?latest.map(e=>`<tr><td>${esc(e.date)}</td><td>${esc(e.time)}</td><td>${esc(e.rh)}</td><td>${esc(e.loc)}</td><td>${esc(e.note)}</td><td>${esc(e.logged)}</td></tr>`).join(''):'<tr><td colspan="6">ยังไม่มีข้อมูล หรือยังโหลดข้อมูลจาก API ไม่สำเร็จ</td></tr>';
+  $('#rows').innerHTML=latest.length?latest.map(e=>`<tr><td>${esc(e.date)}</td><td>${esc(e.time)}</td><td>${esc(e.rh)}</td><td>${esc(e.indoorTemp??'–')}</td><td>${esc(e.outdoorTemp??'–')}</td><td>${esc(e.loc)}</td><td>${esc(e.note)}</td><td>${esc(e.logged)}</td></tr>`).join(''):'<tr><td colspan="8">ยังไม่มีข้อมูล หรือยังโหลดข้อมูลจาก API ไม่สำเร็จ</td></tr>';
 }
 
 function submitViaForm(data){
@@ -321,7 +330,9 @@ function submitViaForm(data){
     form.action=API_URL;
     const values={
       action:'save',date:data.date,time:data.time,rh:String(data.rh),loc:data.loc,note:data.note,
+      indoorTemp:data.indoorTemp==null?'':String(data.indoorTemp),
       outdoorRh:data.outdoorRh==null?'':String(data.outdoorRh),
+      outdoorTemp:data.outdoorTemp==null?'':String(data.outdoorTemp),
       outdoorSource:data.outdoorSource||'',
       outdoorTime:data.outdoorTime||''
     };
@@ -338,34 +349,18 @@ function submitViaForm(data){
   });
 }
 async function saveReading(){
-  const date=$('#f-date').value,time=$('#f-time').value,raw=$('#f-rh').value,rh=Number(raw),loc=$('#f-loc').value.trim(),note=$('#f-note').value.trim();
+  const date=$('#f-date').value,time=$('#f-time').value,raw=$('#f-rh').value,rh=Number(raw),tempRaw=$('#f-temp').value,indoorTemp=tempRaw===''?null:Number(tempRaw),loc=$('#f-loc').value.trim(),note=$('#f-note').value.trim();
+  if(tempRaw!==''&&(!Number.isFinite(indoorTemp)||indoorTemp < -50||indoorTemp > 80))return message('อุณหภูมิภายในต้องอยู่ระหว่าง -50 ถึง 80 °C','err');
   if(!date)return message('กรุณาเลือกวันที่วัด','err');
   if(!SLOT_TIMES.includes(time))return message('เลือกเวลา 07:00 หรือ 16:00 เท่านั้น','err');
   if(raw===''||!Number.isFinite(rh)||rh<0||rh>100)return message('ความชื้นต้องอยู่ระหว่าง 0–100%','err');
   if(!loc)return message('กรุณาระบุตำแหน่งวัด','err');
   if(entries.some(e=>e.date===date&&e.time===time&&e.loc.toLowerCase()===loc.toLowerCase()))return message('มีข้อมูลตำแหน่งนี้ในวันและเวลานี้แล้ว กรุณาตรวจสอบก่อนบันทึกซ้ำ','err');
-//  const outdoorKey=`${date}T${time}:00`,outdoorRh=outdoor.hourly[outdoorKey]??null;
-//  const data={date,time,rh,loc,note,outdoorRh,outdoorSource:outdoor.source[date]||'Open-Meteo',outdoorTime:outdoorKey};
-  // โหลดข้อมูลความชื้นภายนอกของวันที่เลือกก่อนบันทึก
-await loadOutdoor(date, date);
-
-// Open-Meteo ใช้รูปแบบเวลา YYYY-MM-DDTHH:MM
-const outdoorKey = `${date}T${time}`;
-const outdoorRh =
-  outdoor.hourly[outdoorKey] ??
-  outdoor.hourly[`${outdoorKey}:00`] ??
-  null;
-
-const data = {
-  date,
-  time,
-  rh,
-  loc,
-  note,
-  outdoorRh,
-  outdoorSource: outdoor.source[date] || 'Open-Meteo',
-  outdoorTime: outdoorKey
-};
+  try { await loadOutdoor(date,date); } catch (_) {}
+  const outdoorKey=`${date}T${time}`;
+  const outdoorRh=outdoor.hourly[outdoorKey]??outdoor.hourly[`${outdoorKey}:00`]??null;
+  const outdoorTemp=outdoor.tempHourly?.[outdoorKey]??outdoor.tempHourly?.[`${outdoorKey}:00`]??null;
+  const data={date,time,rh,indoorTemp,loc,note,outdoorRh,outdoorTemp,outdoorSource:outdoor.source[date]||'Open-Meteo',outdoorTime:outdoorKey};
   $('#add').disabled=true;
   try{
     if(!API_CONFIGURED){
@@ -374,7 +369,7 @@ const data = {
       demo.push({...data,id:String(Date.now()),logged:bangkokParts().stamp});
       if(!storeSet('rh_local_demo_entries',demo))throw new Error('บันทึกในเบราว์เซอร์ไม่สำเร็จ');
       entries=demo.map(normalizeRecord);render();
-      $('#f-rh').value='';$('#f-note').value='';
+      $('#f-rh').value='';$('#f-temp').value='';$('#f-note').value='';
       message('บันทึกในโหมดทดลองของเบราว์เซอร์นี้แล้ว — ยังไม่ใช่ Google Sheets','err');
       return;
     }
@@ -392,7 +387,7 @@ const data = {
       await new Promise(r=>setTimeout(r,900));
     }
     if(verified){
-      pendingSave=null;$('#f-rh').value='';$('#f-note').value='';
+      pendingSave=null;$('#f-rh').value='';$('#f-temp').value='';$('#f-note').value='';
       $('#f-chart-date').value=date;
       message('บันทึกและตรวจสอบข้อมูลใน Google Sheets สำเร็จ','ok');
     }else{
@@ -410,8 +405,8 @@ function setView(v){view=v;$('#tab-d').setAttribute('aria-pressed',String(v==='d
 $('#f-chart-date').addEventListener('change',()=>{render();loadChartOutdoor();});
 $('#csv').addEventListener('click',()=>{
   const quote=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
-  const rows=[['measured_date','measured_time','indoor_rh_percent','location','note','logged_at','outdoor_rh','outdoor_source','outdoor_time']]
-    .concat(entries.map(e=>[e.date,e.time,e.rh,e.loc,e.note,e.logged,e.outdoorRh,e.outdoorSource,e.outdoorTime]));
+  const rows=[['measured_date','measured_time','indoor_rh_percent','indoor_temp_c','location','note','logged_at','outdoor_rh','outdoor_source','outdoor_time','outdoor_temp_c']]
+    .concat(entries.map(e=>[e.date,e.time,e.rh,e.indoorTemp,e.loc,e.note,e.logged,e.outdoorRh,e.outdoorSource,e.outdoorTime,e.outdoorTemp]));
   const blob=new Blob(['\ufeff'+rows.map(r=>r.map(quote).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8;'});
   const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='indoor-humidity-'+today()+'.csv';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
 });
@@ -421,13 +416,13 @@ $('#c-save').addEventListener('click',()=>{
   if(!Number.isFinite(lon)||Math.abs(lon)>180)return message('Longitude ต้องอยู่ระหว่าง -180 ถึง 180','err');
   if(!Number.isFinite(thr)||thr<0||thr>100)return message('เกณฑ์อ้างอิงต้องอยู่ระหว่าง 0–100%','err');
   cfg={lat,lon,thr,place:place||DEFAULT_CFG.place};storeSet('rh_cfg_v3',cfg);
-  outdoor={hourly:{},source:{},fetchedAt:null};storeSet('rh_out_v3',outdoor);
+  outdoor={hourly:{},tempHourly:{},source:{},fetchedAt:null};storeSet('rh_out_v3',outdoor);
   render();message('บันทึกการตั้งค่าแล้ว กำลังดึงข้อมูลภายนอก');loadChartOutdoor();
 });
 $('#c-reset').addEventListener('click',()=>{
   cfg={...DEFAULT_CFG};storeSet('rh_cfg_v3',cfg);
   $('#c-place').value=cfg.place;$('#c-lat').value=cfg.lat;$('#c-lon').value=cfg.lon;$('#c-thr').value=cfg.thr;
-  outdoor={hourly:{},source:{},fetchedAt:null};storeSet('rh_out_v3',outdoor);
+  outdoor={hourly:{},tempHourly:{},source:{},fetchedAt:null};storeSet('rh_out_v3',outdoor);
   render();message('คืนค่าเริ่มต้นแล้ว กำลังดึงข้อมูลภายนอก');loadChartOutdoor();
 });
 
@@ -441,7 +436,7 @@ async function init(){
   if(API_CONFIGURED)await refreshLogs().catch(()=>{});
   else {
     entries=storeGet('rh_local_demo_entries',[]).map(normalizeRecord);
-    render();message('ยังไม่ได้ตั้งค่า API_URL — ขณะนี้ทำงานในโหมดทดลองเท่านั้น','err');
+    render();message('API_URL — HumidC','err');
   }
   loadChartOutdoor();
 }
