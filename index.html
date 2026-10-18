@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#eef1ee">
-<title>บันทึกความชื้นในอาคาร</title>
+<title>บันทึกความชื้นในอาคาร ชั้น 14 อาคาร ท.102</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -29,17 +29,18 @@ button.small{padding:3px 8px;font-size:.82rem}
 svg .grid{stroke:var(--grid);stroke-width:1}svg .tick{fill:var(--mu);font-size:11px}svg .threshold{stroke:var(--in);stroke-dasharray:5 4;stroke-width:1.4;opacity:.8}
 .key{display:flex;gap:16px;flex-wrap:wrap;font-size:.85rem;margin:8px 0}.key i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 .src{font-size:.82rem;color:var(--mu);border-top:1px solid var(--bd);padding-top:9px;margin-top:10px;overflow-wrap:anywhere}
-.stats{display:flex;gap:18px;flex-wrap:wrap;margin:12px 0}.stats div{font-size:.85rem;color:var(--mu);min-width:120px}.stats b{display:block;font-size:1.3rem;color:var(--tx)}
+.stats{display:flex;gap:18px;flex-wrap:wrap;justify-content:flex-end;align-items:flex-start;margin:2px 0 12px}.stats div{font-size:.82rem;color:var(--mu);min-width:105px;text-align:right}.stats b{display:block;font-size:1.25rem;color:var(--tx);line-height:1.25}.stats .stat-out b{color:var(--out)}.stats .stat-in b{color:var(--in)}.stats .stat-alert b{color:var(--bad)}
+.legend-dot{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:-1px}.legend-red{background:#dc2626}.legend-yellow{background:#eab308}
 #msg{font-size:.9rem;color:var(--mu);margin-top:10px;min-height:1.4em}#msg.err{color:var(--bad)}#msg.ok{color:var(--good)}
 .notice{border:1px solid #e9c98b;background:#fff1d6;color:#75400a;border-radius:8px;padding:10px 12px;margin:12px 0 16px;font-size:.88rem}
 .table-wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:.86rem}th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--bd);white-space:nowrap}th{color:var(--mu);font-weight:600}
 footer{font-size:.8rem;color:var(--mu);padding:4px 2px}
-@media(max-width:600px){main{padding:16px 10px 32px}section{padding:13px}h1{font-size:1.35rem}.stats div{min-width:calc(50% - 18px)}}
+@media(max-width:600px){main{padding:16px 10px 32px}section{padding:13px}h1{font-size:1.35rem}.stats{gap:12px}.stats div{min-width:calc(50% - 12px)}.stats div{text-align:right}}
 </style>
 </head>
 <body>
 <main>
-  <h1>บันทึกความชื้นในอาคาร ชั้น 14 ท.102</h1>
+  <h1>บันทึกความชื้นในอาคาร</h1>
   <p class="sub">เปรียบเทียบความชื้นและอุณหภูมิภายในอาคารกับข้อมูลสภาพอากาศภายนอกจาก Open-Meteo</p>
 
   <div class="notice">
@@ -54,7 +55,6 @@ footer{font-size:.8rem;color:var(--mu);padding:4px 2px}
       <label>วันที่วัด<input type="date" id="f-date" required></label>
       <label>เวลาที่วัด (24 ชั่วโมง)
         <input type="time" id="f-time" step="60" required aria-describedby="time-help" style="width:145px">
-        
       </label>
       <label>ความชื้นภายใน (%)
         <input type="number" id="f-rh" min="0" max="100" step="0.1" inputmode="decimal" placeholder="เช่น 72.5" style="width:145px" required>
@@ -82,13 +82,14 @@ footer{font-size:.8rem;color:var(--mu);padding:4px 2px}
       </div>
       <label>วันที่อ้างอิงกราฟ<input type="date" id="f-chart-date"></label>
     </div>
+    <div class="stats" id="stats" aria-label="สรุปข้อมูลช่วงเวลาที่เลือก"></div>
     <div class="key">
       <span><i style="background:var(--out)"></i>ภายนอก (Open-Meteo)</span>
-      <span><i style="background:var(--in)"></i>ภายใน (วัดจริง)</span>
+      <span><i style="background:#dc2626"></i>ภายในสูงกว่าเกณฑ์</span>
+      <span><i style="background:#eab308"></i>ภายในไม่เกินเกณฑ์</span>
       <span><i style="background:none;border-top:2px dashed var(--in);height:0;border-radius:0"></i>เกณฑ์อ้างอิง <span id="thr-label">60</span>%</span>
     </div>
     <div class="chart-wrap" id="chart"></div>
-    <div class="stats" id="stats"></div>
     <div class="src" id="source-info"></div>
   </section>
 
@@ -102,7 +103,7 @@ footer{font-size:.8rem;color:var(--mu);padding:4px 2px}
       <button id="c-save">บันทึกตั้งค่าและดึงข้อมูลใหม่</button>
       <button id="c-reset">คืนค่าเริ่มต้น</button>
     </div>
-    <p class="src">ค่าเริ่มต้น: Latitude 13.8117793, Longitude 100.4876223 และตำแหน่งวัด “ชั้น 14 ท.102” เกณฑ์ 60% เป็นค่าอ้างอิงที่ปรับได้</p>
+    <p class="src">ค่าเริ่มต้น: Latitude 13.8117793, Longitude 100.4876223 และตำแหน่งวัด “ชั้น 14 ท.102” เกณฑ์ 60% เป็นค่าอ้างอิงที่ปรับได้ ไม่ใช่การวินิจฉัยความเสี่ยงต่อสุขภาพ</p>
   </section>
 
   <section>
@@ -112,11 +113,11 @@ footer{font-size:.8rem;color:var(--mu);padding:4px 2px}
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>วันที่วัด</th><th>เวลา</th><th>ความชื้นที่อ่านจากเครื่องวัด (%)</th><th>ความชื้นภายนอก (%)</th><th>อุณหภูมิภายใน °C</th><th>อุณหภูมิภายนอก °C</th><th>ตำแหน่ง</th><th>หมายเหตุ</th><th>เวลาที่บันทึก</th></tr></thead>
+        <thead><tr><th>วันที่วัด</th><th>เวลา</th><th>ความชื้นภายใน (%)</th><th>ความชื้นภายนอก (%)</th><th>อุณหภูมิภายใน °C</th><th>อุณหภูมิภายนอก °C</th><th>ตำแหน่ง</th><th>หมายเหตุ</th><th>เวลาที่บันทึก</th></tr></thead>
         <tbody id="rows"><tr><td colspan="9">กำลังโหลดข้อมูล…</td></tr></tbody>
       </table>
     </div>
-    <p class="src">แสดงข้อมูลล่าสุดไม่เกิน 100 รายการที่อ่านจาก API ปุ่มลบและล้างข้อมูลไม่ได้เปิดให้ใช้งาน เพื่อป้องกันการลบข้อมูลย้อนหลังโดยไม่ตั้งใจ</p>
+    <p class="src">แสดงข้อมูลล่าสุดไม่เกิน 100 รายการที่อ่านจาก API ปุ่มลบและล้างข้อมูลส่วนกลางไม่ได้เปิดให้ใช้งาน เพื่อป้องกันการลบข้อมูลย้อนหลังโดยไม่ตั้งใจ</p>
   </section>
   <footer>
     แหล่งข้อมูลภายนอก: Open-Meteo API · ความชื้นสัมพัทธ์ภายนอกเป็นข้อมูลสภาพอากาศระดับ 2 เมตร ไม่ใช่ค่าที่วัดภายในห้องโดยตรง
@@ -292,6 +293,7 @@ function frame(){
   return s;
 }
 function threshold(){return `<line class="threshold" x1="${L}" x2="${W-R}" y1="${Y(cfg.thr)}" y2="${Y(cfg.thr)}"/>`;}
+function indoorColor(value){return Number(value)>Number(cfg.thr)?'#dc2626':'#eab308';}
 function dailyChart(d){
   const X=m=>L+m/1440*PW;let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="ความชื้นรายวัน ${d}">`+frame();
   for(let h=0;h<=24;h+=3)s+=`<text class="tick" x="${X(h*60)}" y="${H-10}" text-anchor="middle">${String(h).padStart(2,'0')}:00</text>`;
@@ -299,7 +301,7 @@ function dailyChart(d){
   const points=[];
   for(let h=0;h<24;h++){const v=outdoor.hourly[`${d}T${String(h).padStart(2,'0')}:00`];if(v!=null&&Number.isFinite(Number(v)))points.push([h*60,Number(v)]);}
   if(points.length)s+=`<path d="${points.map((p,i)=>(i?'L':'M')+X(p[0]).toFixed(1)+' '+Y(p[1]).toFixed(1)).join(' ')}" fill="none" stroke="var(--out)" stroke-width="2.5"/>`;
-  indoorOn(d).forEach(e=>{const m=Number(e.time.slice(0,2))*60+Number(e.time.slice(3,5));s+=`<circle cx="${X(m)}" cy="${Y(e.rh)}" r="5.5" fill="var(--in)"><title>${esc(e.time)} น. ${e.rh}% ${esc(e.loc)}</title></circle>`;});
+  indoorOn(d).forEach(e=>{const m=Number(e.time.slice(0,2))*60+Number(e.time.slice(3,5)),color=indoorColor(e.rh);s+=`<circle cx="${X(m)}" cy="${Y(e.rh)}" r="5.5" fill="${color}" stroke="#fff" stroke-width="1.2"><title>${esc(e.time)} น. ${e.rh}% (${e.rh>cfg.thr?'สูงกว่า':'ไม่เกิน'}เกณฑ์ ${cfg.thr}%) · ${esc(e.loc)}</title></circle>`;});
   return s+'</svg>';
 }
 function weeklyChart(end){
@@ -309,7 +311,7 @@ function weeklyChart(end){
     const cx=L+slot*(i+.5),o=avg(outdoorOn(d)),vals=indoorOn(d).map(e=>e.rh),a=avg(vals);
     s+=`<text class="tick" x="${cx}" y="${H-10}" text-anchor="middle">${dayMonth(d)}</text>`;
     if(o!=null)s+=`<rect x="${cx-bw-2}" y="${Y(o)}" width="${bw}" height="${Y(0)-Y(o)}" fill="var(--out)"><title>${d} ภายนอกเฉลี่ย ${o.toFixed(1)}%</title></rect>`;
-    if(a!=null){s+=`<rect x="${cx+2}" y="${Y(a)}" width="${bw}" height="${Y(0)-Y(a)}" fill="var(--in)"><title>${d} ภายในเฉลี่ย ${a.toFixed(1)}% (${vals.length} ค่า)</title></rect>`;s+=`<line x1="${cx+2}" x2="${cx+2+bw}" y1="${Y(Math.max(...vals))}" y2="${Y(Math.max(...vals))}" stroke="var(--tx)" stroke-width="2"/>`;}
+    if(a!=null){const color=indoorColor(a);s+=`<rect x="${cx+2}" y="${Y(a)}" width="${bw}" height="${Y(0)-Y(a)}" fill="${color}"><title>${d} ภายในเฉลี่ย ${a.toFixed(1)}% (${vals.length} ค่า) · ${a>cfg.thr?'สูงกว่า':'ไม่เกิน'}เกณฑ์ ${cfg.thr}%</title></rect>`;s+=`<line x1="${cx+2}" x2="${cx+2+bw}" y1="${Y(Math.max(...vals))}" y2="${Y(Math.max(...vals))}" stroke="${indoorColor(Math.max(...vals))}" stroke-width="2"/>`; }
   });
   return s+'</svg>';
 }
@@ -322,22 +324,30 @@ function monthlyLineChart(end){
     if(i%3===0||i===days.length-1)s+=`<text class="tick" x="${X(i)}" y="${H-10}" text-anchor="middle">${dayMonth(d)}</text>`;
   });
   const outside=days.map(d=>avg(outdoorOn(d)));
-  const inside=days.map(d=>avg(indoorOn(d).map(e=>e.rh)));
-  function line(values,color,label){
+  // One point per day: mean of actual indoor readings on that day.
+  // Dates without an indoor measurement remain null and are not interpolated.
+  const inside=days.map(d=>{const vals=indoorOn(d).map(e=>e.rh);return vals.length?avg(vals):null;});
+  function line(values,color,label,perPointColor=false){
     let paths=[],run=[];
     values.forEach((v,i)=>{
       if(v==null||!Number.isFinite(v)){if(run.length){paths.push(run);run=[];}return;}
-      run.push([X(i),Y(v),days[i],v]);
+      run.push([X(i),Y(v),days[i],v,i]);
     });
     if(run.length)paths.push(run);
     return paths.map(points=>{
       let out=`<path d="${points.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ')}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
-      points.forEach(p=>{out+=`<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="${color}"><title>${p[2]} ${label}: ${p[3].toFixed(1)}%</title></circle>`;});
+      points.forEach(p=>{
+        const pointColor=perPointColor?indoorColor(p[3]):color;
+        const n=perPointColor?indoorOn(p[2]).length:0;
+        const detail=perPointColor?`${p[2]} ภายในเฉลี่ย ${p[3].toFixed(1)}% · วัด ${n} ครั้ง · ${p[3]>cfg.thr?'สูงกว่า':'ไม่เกิน'}เกณฑ์ ${cfg.thr}%`:`${p[2]} ${label}: ${p[3].toFixed(1)}%`;
+        out+=`<circle cx="${p[0]}" cy="${p[1]}" r="${perPointColor?4.5:3}" fill="${pointColor}" stroke="${perPointColor?'#fff':'none'}" stroke-width="${perPointColor?1.2:0}"><title>${esc(detail)}</title></circle>`;
+      });
       return out;
     }).join('');
   }
   s+=line(outside,'var(--out)','ภายนอกเฉลี่ย');
-  s+=line(inside,'var(--in)','ภายในเฉลี่ย');
+  // The connecting line stays orange; each measured-day point is red/yellow by threshold.
+  s+=line(inside,'var(--in)','ภายในเฉลี่ย',true);
   return s+'</svg>';
 }
 function render(){
@@ -346,7 +356,7 @@ function render(){
   $('#thr-label').textContent=cfg.thr;
   const indoor=days.flatMap(x=>indoorOn(x).map(e=>e.rh)),outside=days.flatMap(outdoorOn);
   const over=indoor.length?indoor.filter(v=>v>=cfg.thr).length:null;
-  $('#stats').innerHTML=`<div><b>${fmt(avg(outside))}%</b>ภายนอกเฉลี่ย</div><div><b>${fmt(avg(indoor))}%</b>ภายในเฉลี่ย (${indoor.length} ค่า)</div><div><b>${indoor.length?fmt(Math.max(...indoor)):'–'}%</b>ภายในสูงสุด</div><div><b>${over==null?'–':over+'/'+indoor.length}</b>ค่าภายในที่ ≥ ${cfg.thr}%</div>`;
+  $('#stats').innerHTML=`<div class="stat-out"><b>${fmt(avg(outside))}%</b>ภายนอกเฉลี่ย</div><div class="stat-in"><b>${fmt(avg(indoor))}%</b>ภายในเฉลี่ย (${indoor.length} ค่า)</div><div><b>${indoor.length?fmt(Math.max(...indoor)):'–'}%</b>ภายในสูงสุด</div><div class="stat-alert"><b>${over==null?'–':over+'/'+indoor.length}</b>ค่าภายในที่ ≥ ${cfg.thr}%</div>`;
   const sources=[...new Set(days.map(x=>outdoor.source[x]).filter(Boolean))];
   $('#source-info').innerHTML=`<strong>ภายนอก:</strong> Open-Meteo · พิกัด ${cfg.lat}, ${cfg.lon} (${esc(cfg.place)}) · ${sources.length?sources.map(esc).join(', '):'ยังไม่มีข้อมูลในช่วงนี้'} · ดึงล่าสุด ${esc(outdoor.fetchedAt||'ยังไม่มีข้อมูล')} (เวลาไทย)<br><strong>ภายใน:</strong> Google Sheets ${API_CONFIGURED?'(ฐานข้อมูลกลาง)':'(โหมดทดลองในเครื่อง)'} · เขตเวลา ${TZ}${loadingOutdoor?' · กำลังดึงข้อมูลภายนอก…':''}`;
   $('#count').textContent=entries.length;
