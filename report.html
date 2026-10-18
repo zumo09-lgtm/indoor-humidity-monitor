@@ -176,6 +176,7 @@ footer{padding:14px 4px;color:#5f7b8c;line-height:1.8}
     <div id="avg-impact-warning" class="avg-impact-warning" role="status" aria-live="polite" hidden></div>
     <div class="key">
       <span><i style="background:var(--out)"></i>ภายนอก (Open-Meteo)</span>
+      <span><i style="background:#b5e7fa"></i>ปริมาณฝน (mm)</span>
       <span><i style="background:#dc2626"></i>ภายในสูงกว่าเกณฑ์</span>
       <span><i style="background:#eab308"></i>ภายในไม่เกินเกณฑ์</span>
       <span><i style="background:none;border-top:2px dashed var(--in);height:0;border-radius:0"></i>เกณฑ์อ้างอิง <span id="thr-label">60</span>%</span>
@@ -229,8 +230,9 @@ function storeSet(key, value) {
 }
 let cfg = Object.assign({}, DEFAULT_CFG, storeGet('rh_cfg_v3', {}));
 let entries = [];
-let outdoor = storeGet('rh_out_v3', {hourly:{}, tempHourly:{}, source:{}, fetchedAt:null});
+let outdoor = storeGet('rh_out_v3', {hourly:{}, tempHourly:{}, rainHourly:{}, source:{}, fetchedAt:null});
 outdoor.tempHourly = outdoor.tempHourly || {};
+outdoor.rainHourly = outdoor.rainHourly || {};
 let view = 'd';
 let loadingOutdoor = false;
 let loadingLogs = false;
@@ -330,7 +332,7 @@ async function refreshLogs(silent=false){
   }finally{loadingLogs=false;}
 }
 async function loadOutdoor(start,end){
-  const base=`latitude=${encodeURIComponent(cfg.lat)}&longitude=${encodeURIComponent(cfg.lon)}&hourly=relative_humidity_2m,temperature_2m&timezone=${encodeURIComponent(TZ)}`;
+  const base=`latitude=${encodeURIComponent(cfg.lat)}&longitude=${encodeURIComponent(cfg.lon)}&hourly=relative_humidity_2m,temperature_2m,precipitation&timezone=${encodeURIComponent(TZ)}`;
   const t=today(), jobs=[];
   const archiveEnd=end<addDays(t,-6)?end:addDays(t,-6);
   if(start<=archiveEnd){
@@ -352,8 +354,11 @@ async function loadOutdoor(start,end){
       h.time.forEach((time,i)=>{
         const value=h.relative_humidity_2m?.[i];
         const temp=h.temperature_2m?.[i];
+        const precipitation=h.precipitation?.[i];
         if(value!==null&&value!==undefined)outdoor.hourly[time]=Number(value);
         if(temp!==null&&temp!==undefined)outdoor.tempHourly[time]=Number(temp);
+        // Rainfall is fetched from Open-Meteo and kept only in browser cache; never sent to Google Sheets.
+        if(precipitation!==null&&precipitation!==undefined&&Number.isFinite(Number(precipitation)))outdoor.rainHourly[time]=Number(precipitation);
         outdoor.source[time.slice(0,10)]=result.source;
       });
     }
@@ -370,6 +375,13 @@ function loadChartOutdoor(){
 }
 function outdoorOn(date){
   return Object.keys(outdoor.hourly).filter(k=>k.startsWith(date+'T')).map(k=>Number(outdoor.hourly[k])).filter(Number.isFinite);
+}
+function rainOn(date){
+  return Object.keys(outdoor.rainHourly).filter(k=>k.startsWith(date+'T')).map(k=>Number(outdoor.rainHourly[k])).filter(v=>Number.isFinite(v)&&v>=0);
+}
+function rainAt(date,hour){
+  const v=outdoor.rainHourly[`${date}T${String(hour).padStart(2,'0')}:00`];
+  return v==null||!Number.isFinite(Number(v))?null:Number(v);
 }
 function indoorOn(date){return entries.filter(e=>e.date===date&&Number.isFinite(e.rh));}
 
@@ -398,6 +410,16 @@ function dailyChart(d){
   const X=m=>L+m/1440*PW;let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="ความชื้นรายวัน ${d}">`+frame();
   for(let h=0;h<=24;h+=3)s+=`<text class="tick" x="${X(h*60)}" y="${H-10}" text-anchor="middle">${String(h).padStart(2,'0')}:00</text>`;
   s+=threshold();
+  const rainValues=Array.from({length:24},(_,h)=>rainAt(d,h)).filter(v=>v!==null);
+  const rainMax=Math.max(1,...rainValues);
+  for(let h=0;h<24;h++){
+    const rain=rainAt(d,h);
+    if(rain!==null&&rain>0){
+      const barH=(rain/rainMax)*(PH*.34),barW=Math.max(4,PW/24*.48),x=X(h*60)-barW/2,y=T+PH-barH;
+      s+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${barH.toFixed(1)}" rx="2" fill="#b5e7fa" opacity=".9"><title>${String(h).padStart(2,'0')}:00 น. ปริมาณฝน ${rain.toFixed(1)} mm</title></rect>`;
+    }
+  }
+  s+=`<text class="tick" x="${W-R+3}" y="${T+10}" text-anchor="start" fill="#4b9fc8">ฝน</text>`;
   const points=[];
   for(let h=0;h<24;h++){const v=outdoor.hourly[`${d}T${String(h).padStart(2,'0')}:00`];if(v!=null&&Number.isFinite(Number(v)))points.push([h*60,Number(v)]);}
   if(points.length)s+=`<path d="${smoothPath(points.map(p=>[X(p[0]),Y(p[1])]))}" fill="none" stroke="var(--out)" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>`;
@@ -407,8 +429,11 @@ function dailyChart(d){
 function weeklyChart(end){
   const days=Array.from({length:7},(_,i)=>addDays(end,i-6)),slot=PW/7,bw=slot*.29;
   let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="ความชื้นย้อนหลัง 7 วันถึง ${end}">`+frame()+threshold();
+  const rainTotals=days.map(d=>rainOn(d).reduce((sum,v)=>sum+v,0)),rainMax=Math.max(1,...rainTotals);
   days.forEach((d,i)=>{
     const cx=L+slot*(i+.5),o=avg(outdoorOn(d)),vals=indoorOn(d).map(e=>e.rh),a=avg(vals);
+    const rain=rainTotals[i],rainH=(rain/rainMax)*(PH*.34);
+    if(rain>0)s+=`<rect x="${cx-slot*.11}" y="${T+PH-rainH}" width="${slot*.22}" height="${rainH}" rx="3" fill="#b5e7fa" opacity=".9"><title>${d} ปริมาณฝนรวม ${rain.toFixed(1)} mm</title></rect>`;
     s+=`<text class="tick" x="${cx}" y="${H-10}" text-anchor="middle">${dayMonth(d)}</text>`;
     if(o!=null)s+=`<rect x="${cx-bw-2}" y="${Y(o)}" width="${bw}" height="${Y(0)-Y(o)}" fill="var(--out)"><title>${d} ภายนอกเฉลี่ย ${o.toFixed(1)}%</title></rect>`;
     if(a!=null){const color=indoorColor(a);s+=`<rect x="${cx+2}" y="${Y(a)}" width="${bw}" height="${Y(0)-Y(a)}" fill="${color}"><title>${d} ภายในเฉลี่ย ${a.toFixed(1)}% (${vals.length} ค่า) · ${a>cfg.thr?'สูงกว่า':'ไม่เกิน'}เกณฑ์ ${cfg.thr}%</title></rect>`;s+=`<line x1="${cx+2}" x2="${cx+2+bw}" y1="${Y(Math.max(...vals))}" y2="${Y(Math.max(...vals))}" stroke="${indoorColor(Math.max(...vals))}" stroke-width="2"/>`; }
@@ -420,7 +445,10 @@ function monthlyLineChart(end){
   const slot=PW/(days.length-1);
   const X=i=>L+i*slot;
   let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="กราฟเส้นความชื้นย้อนหลัง 1 เดือนถึง ${end}">`+frame()+threshold();
+  const rainTotals=days.map(d=>rainOn(d).reduce((sum,v)=>sum+v,0)),rainMax=Math.max(1,...rainTotals);
   days.forEach((d,i)=>{
+    const rain=rainTotals[i],barH=(rain/rainMax)*(PH*.34),barW=Math.max(3,slot*.38);
+    if(rain>0)s+=`<rect x="${(X(i)-barW/2).toFixed(1)}" y="${(T+PH-barH).toFixed(1)}" width="${barW.toFixed(1)}" height="${barH.toFixed(1)}" rx="2" fill="#b5e7fa" opacity=".75"><title>${d} ปริมาณฝนรวม ${rain.toFixed(1)} mm</title></rect>`;
     if(i%3===0||i===days.length-1)s+=`<text class="tick" x="${X(i)}" y="${H-10}" text-anchor="middle">${dayMonth(d)}</text>`;
   });
   const outside=days.map(d=>avg(outdoorOn(d)));
@@ -471,7 +499,7 @@ function render(){
     avgImpact.textContent='';
   }
   const sources=[...new Set(days.map(x=>outdoor.source[x]).filter(Boolean))];
-  $('#source-info').innerHTML=`<strong>ภายนอก:</strong> Open-Meteo · พิกัด ${cfg.lat}, ${cfg.lon} (${esc(cfg.place)}) · ${sources.length?sources.map(esc).join(', '):'ยังไม่มีข้อมูลในช่วงนี้'} · ดึงล่าสุด ${esc(outdoor.fetchedAt||'ยังไม่มีข้อมูล')} (เวลาไทย)<br><strong>ภายใน:</strong> Google Sheets ${API_CONFIGURED?'(ฐานข้อมูลกลาง)':'(โหมดทดลองในเครื่อง)'} · เขตเวลา ${TZ}${loadingOutdoor?' · กำลังดึงข้อมูลภายนอก…':''}`;
+  $('#source-info').innerHTML=`<strong>ภายนอก:</strong> Open-Meteo · ความชื้น อุณหภูมิ และปริมาณฝน (mm) · พิกัด ${cfg.lat}, ${cfg.lon} (${esc(cfg.place)}) · ${sources.length?sources.map(esc).join(', '):'ยังไม่มีข้อมูลในช่วงนี้'} · ดึงล่าสุด ${esc(outdoor.fetchedAt||'ยังไม่มีข้อมูล')} (เวลาไทย)<br><strong>ภายใน:</strong> Google Sheets ${API_CONFIGURED?'(ฐานข้อมูลกลาง)':'(โหมดทดลองในเครื่อง)'} · เขตเวลา ${TZ}${loadingOutdoor?' · กำลังดึงข้อมูลภายนอก…':''}`;
   $('#count').textContent=entries.length;
   const latest=[...entries].sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time)).slice(0,100);
   $('#rows').innerHTML=latest.length?latest.map(e=>`<tr><td>${esc(e.date)}</td><td>${esc(e.time)}</td><td>${fmt(e.rh)}%</td><td>${e.outdoorRh==null?'–':fmt(e.outdoorRh)+'%'}</td><td>${esc(e.indoorTemp??'–')}</td><td>${esc(e.outdoorTemp??'–')}</td><td>${esc(e.loc)}</td><td>${esc(e.note)}</td><td>${esc(e.logged)}</td></tr>`).join(''):`<tr><td colspan="9">${esc(apiTableMessage||'ยังไม่มีข้อมูลในช่วงที่แสดง')}</td></tr>`;
