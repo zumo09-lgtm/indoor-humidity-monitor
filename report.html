@@ -175,7 +175,7 @@ footer{padding:14px 4px;color:#5f7b8c;line-height:1.8}
     <div class="stats" id="stats" aria-label="สรุปข้อมูลช่วงเวลาที่เลือก"></div>
     <div id="avg-impact-warning" class="avg-impact-warning" role="status" aria-live="polite" hidden></div>
     <div class="key">
-      <span><i style="background:var(--out)"></i>ภายนอก (Open-Meteo)</span>
+      <span><i style="background:var(--out)"></i>ความชื้นภายนอก (%)</span>
       <span><i style="background:#b5e7fa"></i>ปริมาณฝน (mm)</span>
       <span><i style="background:#dc2626"></i>ภายในสูงกว่าเกณฑ์</span>
       <span><i style="background:#eab308"></i>ภายในไม่เกินเกณฑ์</span>
@@ -419,7 +419,6 @@ function dailyChart(d){
       s+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${barH.toFixed(1)}" rx="2" fill="#b5e7fa" opacity=".9"><title>${String(h).padStart(2,'0')}:00 น. ปริมาณฝน ${rain.toFixed(1)} mm</title></rect>`;
     }
   }
-  s+=`<text class="tick" x="${W-R+3}" y="${T+10}" text-anchor="start" fill="#4b9fc8">ฝน</text>`;
   const points=[];
   for(let h=0;h<24;h++){const v=outdoor.hourly[`${d}T${String(h).padStart(2,'0')}:00`];if(v!=null&&Number.isFinite(Number(v)))points.push([h*60,Number(v)]);}
   if(points.length)s+=`<path d="${smoothPath(points.map(p=>[X(p[0]),Y(p[1])]))}" fill="none" stroke="var(--out)" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>`;
