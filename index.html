@@ -39,7 +39,7 @@ footer{font-size:.8rem;color:var(--mu);padding:4px 2px}
 </head>
 <body>
 <main>
-  <h1>บันทึกความชื้นในอาคาร</h1>
+  <h1>บันทึกความชื้นในอาคาร ชั้น 14 ท.102</h1>
   <p class="sub">เปรียบเทียบความชื้นและอุณหภูมิภายในอาคารกับข้อมูลสภาพอากาศภายนอกจาก Open-Meteo</p>
 
   <div class="notice">
@@ -52,10 +52,11 @@ footer{font-size:.8rem;color:var(--mu);padding:4px 2px}
     <h2>บันทึกค่าความชื้นภายใน</h2>
     <div class="row">
       <label>วันที่วัด<input type="date" id="f-date" required></label>
-      <label>เวลาที่วัด
-        <select id="f-time"><option value="07:00">07:00 น.</option><option value="16:00">16:00 น.</option></select>
+      <label>เวลาที่วัด (24 ชั่วโมง)
+        <input type="time" id="f-time" step="60" required aria-describedby="time-help" style="width:145px">
+        <small id="time-help">กรอกแบบ 24 ชั่วโมง เช่น 07:00 หรือ 16:30 น.</small>
       </label>
-      <label>ความชื้นสัมพัทธ์ (% RH)
+      <label>ความชื้นที่อ่านจากเครื่องวัด (%)
         <input type="number" id="f-rh" min="0" max="100" step="0.1" inputmode="decimal" placeholder="เช่น 72.5" style="width:145px" required>
       </label>
       <label>อุณหภูมิภายใน (°C)
@@ -65,7 +66,7 @@ footer{font-size:.8rem;color:var(--mu);padding:4px 2px}
         <input type="text" id="f-loc" value="ชั้น 14 ท.102" style="width:190px" required>
       </label>
       <label>หมายเหตุ
-        <input type="text" id="f-note" placeholder="เช่น เปิดเครื่องปรับอากาศ" style="width:210px">
+        <input type="text" id="f-note" placeholder="เช่น ฝนตก" style="width:210px">
       </label>
       <button class="primary" id="add">บันทึก</button>
     </div>
@@ -101,7 +102,7 @@ footer{font-size:.8rem;color:var(--mu);padding:4px 2px}
       <button id="c-save">บันทึกตั้งค่าและดึงข้อมูลใหม่</button>
       <button id="c-reset">คืนค่าเริ่มต้น</button>
     </div>
-    <p class="src">ค่าเริ่มต้น: Latitude 13.8117793, Longitude 100.4876223 และตำแหน่งวัด “ชั้น 14 ท.102” เกณฑ์ 60% เป็นค่าอ้างอิงที่ปรับได้ ไม่ใช่การวินิจฉัยความเสี่ยงต่อสุขภาพ</p>
+    <p class="src">ค่าเริ่มต้น: Latitude 13.8117793, Longitude 100.4876223 และตำแหน่งวัด “ชั้น 14 ท.102” เกณฑ์ 60% เป็นค่าอ้างอิงที่ปรับได้</p>
   </section>
 
   <section>
@@ -111,11 +112,11 @@ footer{font-size:.8rem;color:var(--mu);padding:4px 2px}
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>วันที่วัด</th><th>เวลา</th><th>RH %</th><th>อุณหภูมิภายใน °C</th><th>อุณหภูมิภายนอก °C</th><th>ตำแหน่ง</th><th>หมายเหตุ</th><th>เวลาที่บันทึก</th></tr></thead>
-        <tbody id="rows"><tr><td colspan="6">กำลังโหลดข้อมูล…</td></tr></tbody>
+        <thead><tr><th>วันที่วัด</th><th>เวลา</th><th>ความชื้นที่อ่านจากเครื่องวัด (%)</th><th>ความชื้นภายนอก (%)</th><th>อุณหภูมิภายใน °C</th><th>อุณหภูมิภายนอก °C</th><th>ตำแหน่ง</th><th>หมายเหตุ</th><th>เวลาที่บันทึก</th></tr></thead>
+        <tbody id="rows"><tr><td colspan="9">กำลังโหลดข้อมูล…</td></tr></tbody>
       </table>
     </div>
-    <p class="src">แสดงข้อมูลล่าสุดไม่เกิน 100 รายการที่อ่านจาก API ปุ่มลบและล้างข้อมูลส่วนกลางไม่ได้เปิดให้ใช้งานจากหน้าเว็บนี้ เพื่อป้องกันการลบข้อมูลย้อนหลังโดยไม่ตั้งใจ</p>
+    <p class="src">แสดงข้อมูลล่าสุดไม่เกิน 100 รายการที่อ่านจาก API ปุ่มลบและล้างข้อมูลไม่ได้เปิดให้ใช้งาน เพื่อป้องกันการลบข้อมูลย้อนหลังโดยไม่ตั้งใจ</p>
   </section>
   <footer>
     แหล่งข้อมูลภายนอก: Open-Meteo API · ความชื้นสัมพัทธ์ภายนอกเป็นข้อมูลสภาพอากาศระดับ 2 เมตร ไม่ใช่ค่าที่วัดภายในห้องโดยตรง
@@ -143,7 +144,6 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbxO5FqqFqfkSHTmyw0vA_2s
 const TZ = 'Asia/Bangkok';
 const $ = selector => document.querySelector(selector);
 const DEFAULT_CFG = {lat:13.8117793, lon:100.4876223, place:'ชั้น 14 ท.102', thr:60};
-const SLOT_TIMES = ['07:00','16:00'];
 const API_CONFIGURED = /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec(?:\?.*)?$/.test(API_URL);
 
 function storeGet(key, fallback) {
@@ -351,7 +351,7 @@ function render(){
   $('#source-info').innerHTML=`<strong>ภายนอก:</strong> Open-Meteo · พิกัด ${cfg.lat}, ${cfg.lon} (${esc(cfg.place)}) · ${sources.length?sources.map(esc).join(', '):'ยังไม่มีข้อมูลในช่วงนี้'} · ดึงล่าสุด ${esc(outdoor.fetchedAt||'ยังไม่มีข้อมูล')} (เวลาไทย)<br><strong>ภายใน:</strong> Google Sheets ${API_CONFIGURED?'(ฐานข้อมูลกลาง)':'(โหมดทดลองในเครื่อง)'} · เขตเวลา ${TZ}${loadingOutdoor?' · กำลังดึงข้อมูลภายนอก…':''}`;
   $('#count').textContent=entries.length;
   const latest=[...entries].sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time)).slice(0,100);
-  $('#rows').innerHTML=latest.length?latest.map(e=>`<tr><td>${esc(e.date)}</td><td>${esc(e.time)}</td><td>${esc(e.rh)}</td><td>${esc(e.indoorTemp??'–')}</td><td>${esc(e.outdoorTemp??'–')}</td><td>${esc(e.loc)}</td><td>${esc(e.note)}</td><td>${esc(e.logged)}</td></tr>`).join(''):'<tr><td colspan="8">ยังไม่มีข้อมูล หรือยังโหลดข้อมูลจาก API ไม่สำเร็จ</td></tr>';
+  $('#rows').innerHTML=latest.length?latest.map(e=>`<tr><td>${esc(e.date)}</td><td>${esc(e.time)}</td><td>${fmt(e.rh)}%</td><td>${e.outdoorRh==null?'–':fmt(e.outdoorRh)+'%'}</td><td>${esc(e.indoorTemp??'–')}</td><td>${esc(e.outdoorTemp??'–')}</td><td>${esc(e.loc)}</td><td>${esc(e.note)}</td><td>${esc(e.logged)}</td></tr>`).join(''):'<tr><td colspan="9">ยังไม่มีข้อมูล หรือยังโหลดข้อมูลจาก API ไม่สำเร็จ</td></tr>';
 }
 
 function submitViaForm(data){
@@ -382,7 +382,7 @@ async function saveReading(){
   const date=$('#f-date').value,time=$('#f-time').value,raw=$('#f-rh').value,rh=Number(raw),tempRaw=$('#f-temp').value,indoorTemp=tempRaw===''?null:Number(tempRaw),loc=$('#f-loc').value.trim(),note=$('#f-note').value.trim();
   if(tempRaw!==''&&(!Number.isFinite(indoorTemp)||indoorTemp < -50||indoorTemp > 80))return message('อุณหภูมิภายในต้องอยู่ระหว่าง -50 ถึง 80 °C','err');
   if(!date)return message('กรุณาเลือกวันที่วัด','err');
-  if(!SLOT_TIMES.includes(time))return message('เลือกเวลา 07:00 หรือ 16:00 เท่านั้น','err');
+  if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(time))return message('กรุณากรอกเวลาให้ถูกต้องในรูปแบบ 24 ชั่วโมง HH:MM เช่น 07:00 หรือ 16:30','err');
   if(raw===''||!Number.isFinite(rh)||rh<0||rh>100)return message('ความชื้นต้องอยู่ระหว่าง 0–100%','err');
   if(!loc)return message('กรุณาระบุตำแหน่งวัด','err');
   if(entries.some(e=>e.date===date&&e.time===time&&e.loc.toLowerCase()===loc.toLowerCase()))return message('มีข้อมูลตำแหน่งนี้ในวันและเวลานี้แล้ว กรุณาตรวจสอบก่อนบันทึกซ้ำ','err');
@@ -460,7 +460,7 @@ $('#c-reset').addEventListener('click',()=>{
 async function init(){
   const now=bangkokParts();
   $('#f-date').value=now.date;$('#f-chart-date').value=now.date;
-  $('#f-time').value=now.time<'12:00'?'07:00':'16:00';
+  $('#f-time').value=now.time;
   $('#f-loc').value=DEFAULT_CFG.place;
   $('#c-place').value=cfg.place;$('#c-lat').value=cfg.lat;$('#c-lon').value=cfg.lon;$('#c-thr').value=cfg.thr;
   render();
