@@ -37,12 +37,59 @@ svg .grid{stroke:var(--grid);stroke-width:1}svg .tick{fill:var(--mu);font-size:1
 .table-wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:.86rem}th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--bd);white-space:nowrap}th{color:var(--mu);font-weight:600}
 footer{font-size:.8rem;color:var(--mu);padding:4px 2px}
 @media(max-width:600px){main{padding:16px 10px 32px}section{padding:13px}h1{font-size:1.35rem}.stats{gap:12px}.stats div{min-width:calc(50% - 12px)}.stats div{text-align:right}.chart-head{display:block}.chart-tools{margin-bottom:10px}.tabs button{padding:6px 8px;font-size:.86rem}}
+.site-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.profile-photo {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center;
+  flex-shrink: 0;
+}
+
+.site-header h1 {
+  margin: 0 0 6px;
+}
+
+.site-header .sub {
+  margin: 0;
+}
+
+@media (max-width: 600px) {
+  .profile-photo {
+    width: 64px;
+    height: 64px;
+  }
+
+  .site-header {
+    gap: 12px;
+  }
+}
 </style>
 </head>
 <body>
 <main>
-  <h1>รายงานความชื้น ชั้น 14 ท.102</h1>
-  <p class="sub">ไม่อนุญาตให้คัดลอก หรือ ดึงข้อมูล ที่รวบรวมขึ้นเองจากเว็บไซต์นี้โดยไม่ได้รับอนุญาตจาก น.ส.กนกวรรณ จันทร์เกตุ</p>
+  <header class="site-header">
+  <img
+    class="profile-photo"
+    src="./profile.jpg"
+    alt="รูปผู้ดูแลเว็บไซต์"
+  >
+
+  <div>
+    <h1>รายงานความชื้น ชั้น 14 ท.102</h1>
+
+    <p class="sub"> ไม่อนุญาตให้คัดลอก หรือ ดึงข้อมูล ที่รวบรวมขึ้นเองจากเว็บไซต์นี้โดยไม่ได้รับอนุญาตจาก น.ส.กนกวรรณ จันทร์เกตุ
+    </p>
+  </div>
+</header>
+
   <div id="msg" role="status" aria-live="polite">กำลังเชื่อมต่อ Google Sheets…</div>
 
 <section>
