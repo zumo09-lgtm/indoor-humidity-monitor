@@ -98,6 +98,8 @@ footer{font-size:.8rem;color:var(--mu);padding:4px 2px}
  */
 const API_URL = 'https://script.google.com/macros/s/AKfycbxO5FqqFqfkSHTmyw0vA_2s2MMJaJb22pfhVjD2D0G7vJqAZwrWiHyt-9osY2AuTLvA6g/exec';
 const TZ = 'Asia/Bangkok';
+// Fixed threshold for the health-impact notice; independent of the user-selected chart threshold.
+const HEALTH_WARNING_THRESHOLD = 60;
 const $ = selector => document.querySelector(selector);
 const DEFAULT_CFG = {lat:13.8117793, lon:100.4876223, place:'EGAT HQ', thr:60};
 const API_CONFIGURED = /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec(?:\?.*)?$/.test(API_URL);
@@ -330,10 +332,12 @@ function render(){
   const over=indoor.length?indoor.filter(v=>v>cfg.thr).length:null;
   const overPct=indoor.length?((over/indoor.length)*100):null;
   $('#stats').innerHTML=`<div class="stat-out"><b>${fmt(avg(outside))}%</b>ภายนอกเฉลี่ย</div><div class="stat-in"><b>${fmt(indoorAvg)}%</b>ภายในเฉลี่ย (${indoor.length} ค่า)</div><div><b>${indoor.length?fmt(Math.max(...indoor)):'–'}%</b>ภายในสูงสุด</div><div class="stat-alert"><b>${over==null?'–':over+'/'+indoor.length}</b>ครั้งที่เกินเกณฑ์ / ข้อมูลทั้งหมด${overPct==null?'':` (${fmt(overPct)}%)`}</div>`;
+  // The health notice always uses a fixed 60% indoor-average threshold.
+  // The threshold control only affects chart colors and the over-threshold count.
   const avgImpact=$('#avg-impact-warning');
-  if(indoorAvg!==null && indoorAvg>cfg.thr){
+  if(indoorAvg!==null && indoorAvg>HEALTH_WARNING_THRESHOLD){
     avgImpact.hidden=false;
-    avgImpact.innerHTML=`<strong>ค่าเฉลี่ยความชื้นภายในสูงกว่าเกณฑ์ ${fmt(cfg.thr,0)}% (${fmt(indoorAvg)}%)</strong><br>หากความชื้นสูงกว่า ${fmt(cfg.thr,0)}% อย่างต่อเนื่อง อาจเอื้อต่อการเกิดเชื้อราและกลิ่นอับ และอาจกระตุ้นอาการแพ้หรือระคายเคืองในบางคนเมื่อมีสารก่อภูมิแพ้ร่วมด้วย`;
+    avgImpact.innerHTML=`<strong>ค่าเฉลี่ยความชื้นภายในสูงกว่า ${HEALTH_WARNING_THRESHOLD}% (${fmt(indoorAvg)}%)</strong><br>หากความชื้นสัมพัทธ์สูงกว่า 60% อย่างต่อเนื่อง อาจเอื้อต่อการเกิดเชื้อราและกลิ่นอับ และอาจเพิ่มความเสี่ยงต่ออาการแพ้หรือระคายเคืองในบางคนเมื่อมีเชื้อราหรือสารก่อภูมิแพ้ร่วมด้วย`;
   }else{
     avgImpact.hidden=true;
     avgImpact.textContent='';
