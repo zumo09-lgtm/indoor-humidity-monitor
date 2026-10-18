@@ -33,6 +33,7 @@ svg .grid{stroke:var(--grid);stroke-width:1}svg .tick{fill:var(--mu);font-size:1
 .legend-dot{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:-1px}.legend-red{background:#dc2626}.legend-yellow{background:#eab308}
 #msg{font-size:.9rem;color:var(--mu);margin:0 0 12px;min-height:1.4em;padding:8px 10px;border-radius:7px;background:#e6ece8;overflow-wrap:anywhere}#msg:empty{display:none}#msg.err{color:var(--bad);background:#fce8e6}#msg.ok{color:var(--good);background:#e6f4ea}
 .impact-box{border:1px solid #e9c98b;background:#fff1d6;color:#75400a;border-radius:8px;padding:10px 12px;font-size:.9rem}.impact-box.normal{border-color:#b7d9c4;background:#edf8f0;color:#245b3b}
+.avg-impact-warning{border:1px solid #efc4c1;background:#fae9e7;color:#7f332f;border-radius:8px;padding:10px 14px;margin:0 0 14px;font-size:.92rem}.avg-impact-warning[hidden]{display:none}
 .table-wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:.86rem}th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--bd);white-space:nowrap}th{color:var(--mu);font-weight:600}
 footer{font-size:.8rem;color:var(--mu);padding:4px 2px}
 @media(max-width:600px){main{padding:16px 10px 32px}section{padding:13px}h1{font-size:1.35rem}.stats{gap:12px}.stats div{min-width:calc(50% - 12px)}.stats div{text-align:right}.chart-head{display:block}.chart-tools{margin-bottom:10px}.tabs button{padding:6px 8px;font-size:.86rem}}
@@ -40,8 +41,8 @@ footer{font-size:.8rem;color:var(--mu);padding:4px 2px}
 </head>
 <body>
 <main>
-  <h1>Indoor Humidity Monitor</h1>
-  <p class="sub">ไม่อนุญาตให้นำข้อมูลไปใช้ก่อนได้รับอนุญาตจาก น.ส.กนกวรรณ จันทร์เกตุ</p>
+  <h1>รายงานความชื้น ชั้น 14 ท.102</h1>
+  <p class="sub">ไม่อนุญาตให้คัดลอก หรือ ดึงข้อมูล ที่รวบรวมขึ้นเองจากเว็บไซต์นี้โดยไม่ได้รับอนุญาตจาก น.ส.กนกวรรณ จันทร์เกตุ</p>
   <div id="msg" role="status" aria-live="polite">กำลังเชื่อมต่อ Google Sheets…</div>
 
 <section>
@@ -57,6 +58,7 @@ footer{font-size:.8rem;color:var(--mu);padding:4px 2px}
       </div>
     </div>
     <div class="stats" id="stats" aria-label="สรุปข้อมูลช่วงเวลาที่เลือก"></div>
+    <div id="avg-impact-warning" class="avg-impact-warning" role="status" aria-live="polite" hidden></div>
     <div class="key">
       <span><i style="background:var(--out)"></i>ภายนอก (Open-Meteo)</span>
       <span><i style="background:#dc2626"></i>ภายในสูงกว่าเกณฑ์</span>
@@ -324,10 +326,18 @@ function render(){
   $('#chart').innerHTML=view==='d'?dailyChart(d):view==='w'?weeklyChart(d):monthlyLineChart(d);
   $('#thr-label').textContent=cfg.thr;
   const indoor=days.flatMap(x=>indoorOn(x).map(e=>e.rh)),outside=days.flatMap(outdoorOn);
+  const indoorAvg=avg(indoor);
   const over=indoor.length?indoor.filter(v=>v>cfg.thr).length:null;
   const overPct=indoor.length?((over/indoor.length)*100):null;
-  $('#stats').innerHTML=`<div class="stat-out"><b>${fmt(avg(outside))}%</b>ภายนอกเฉลี่ย</div><div class="stat-in"><b>${fmt(avg(indoor))}%</b>ภายในเฉลี่ย (${indoor.length} ค่า)</div><div><b>${indoor.length?fmt(Math.max(...indoor)):'–'}%</b>ภายในสูงสุด</div><div class="stat-alert"><b>${over==null?'–':over+'/'+indoor.length}</b>ครั้งที่เกินเกณฑ์ / ข้อมูลทั้งหมด${overPct==null?'':` (${fmt(overPct)}%)`}</div>`;
-  const impact=$('#impact-summary'); if(impact){impact.className='impact-box'+(over>0?'':' normal');impact.innerHTML=over>0?`<strong>พบค่าความชื้นสูงกว่าเกณฑ์ ${cfg.thr}%</strong><br>เกินเกณฑ์ ${over} จาก ${indoor.length} รายการ (${fmt(overPct)}%) ในช่วงเวลาที่เลือก`:`<strong>ไม่พบค่าที่สูงกว่าเกณฑ์ ${cfg.thr}%</strong><br>จากข้อมูลที่มี ${indoor.length} รายการในช่วงเวลาที่เลือก`; }
+  $('#stats').innerHTML=`<div class="stat-out"><b>${fmt(avg(outside))}%</b>ภายนอกเฉลี่ย</div><div class="stat-in"><b>${fmt(indoorAvg)}%</b>ภายในเฉลี่ย (${indoor.length} ค่า)</div><div><b>${indoor.length?fmt(Math.max(...indoor)):'–'}%</b>ภายในสูงสุด</div><div class="stat-alert"><b>${over==null?'–':over+'/'+indoor.length}</b>ครั้งที่เกินเกณฑ์ / ข้อมูลทั้งหมด${overPct==null?'':` (${fmt(overPct)}%)`}</div>`;
+  const avgImpact=$('#avg-impact-warning');
+  if(indoorAvg!==null && indoorAvg>cfg.thr){
+    avgImpact.hidden=false;
+    avgImpact.innerHTML=`<strong>ค่าเฉลี่ยความชื้นภายในสูงกว่าเกณฑ์ ${fmt(cfg.thr,0)}% (${fmt(indoorAvg)}%)</strong><br>หากความชื้นสูงกว่า ${fmt(cfg.thr,0)}% อย่างต่อเนื่อง อาจเอื้อต่อการเกิดเชื้อราและกลิ่นอับ และอาจกระตุ้นอาการแพ้หรือระคายเคืองในบางคนเมื่อมีสารก่อภูมิแพ้ร่วมด้วย`;
+  }else{
+    avgImpact.hidden=true;
+    avgImpact.textContent='';
+  }
   const sources=[...new Set(days.map(x=>outdoor.source[x]).filter(Boolean))];
   $('#source-info').innerHTML=`<strong>ภายนอก:</strong> Open-Meteo · พิกัด ${cfg.lat}, ${cfg.lon} (${esc(cfg.place)}) · ${sources.length?sources.map(esc).join(', '):'ยังไม่มีข้อมูลในช่วงนี้'} · ดึงล่าสุด ${esc(outdoor.fetchedAt||'ยังไม่มีข้อมูล')} (เวลาไทย)<br><strong>ภายใน:</strong> Google Sheets ${API_CONFIGURED?'(ฐานข้อมูลกลาง)':'(โหมดทดลองในเครื่อง)'} · เขตเวลา ${TZ}${loadingOutdoor?' · กำลังดึงข้อมูลภายนอก…':''}`;
   $('#count').textContent=entries.length;
