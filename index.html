@@ -471,7 +471,8 @@ $('#c-reset').addEventListener('click',()=>{
 async function init(){
   const now=bangkokParts();
   $('#f-date').value=now.date;$('#f-chart-date').value=now.date;
-  $('#f-time').value=now.time;
+  // ตั้งค่าเริ่มต้นเป็นชั่วโมงปัจจุบัน และนาทีเป็น 00; ผู้ใช้ยังเปลี่ยนเวลาได้
+  $('#f-time').value=now.time.slice(0,2)+':00';
   $('#f-loc').value=DEFAULT_CFG.place;
   $('#c-place').value=cfg.place;$('#c-lat').value=cfg.lat;$('#c-lon').value=cfg.lon;$('#c-thr').value=cfg.thr;
   render();
